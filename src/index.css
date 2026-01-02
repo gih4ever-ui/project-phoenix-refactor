@@ -1,117 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Fluctus Design System - Clean, Professional Business App */
+/* Fluctus Design System - Based on Brand Manual */
 
 @layer base {
   :root {
     /* Base Colors */
     --background: 210 20% 98%;
-    --foreground: 215 25% 27%;
+    --foreground: 222 47% 20%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 27%;
+    --card-foreground: 222 47% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 27%;
+    --popover-foreground: 222 47% 20%;
 
-    /* Primary - Blue */
-    --primary: 217 91% 60%;
+    /* Primary - Fluctus Navy Blue #021F67 */
+    --primary: 222 96% 21%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary - Slate */
     --secondary: 210 40% 96%;
-    --secondary-foreground: 215 25% 27%;
+    --secondary-foreground: 222 47% 20%;
 
     /* Muted */
     --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
 
-    /* Accent */
-    --accent: 217 91% 60%;
+    /* Accent - Fluctus Vibrant Blue #0441D9 */
+    --accent: 222 95% 44%;
     --accent-foreground: 0 0% 100%;
 
     /* Semantic Colors */
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
     
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    /* Warning - Fluctus Yellow #FEE272 */
+    --warning: 44 98% 72%;
+    --warning-foreground: 222 47% 20%;
     
-    --destructive: 0 84% 60%;
+    /* Destructive - Fluctus Orange #FA3B0B */
+    --destructive: 13 97% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --info: 199 89% 48%;
-    --info-foreground: 0 0% 100%;
+    /* Info - Fluctus Light Blue #82D1FF */
+    --info: 199 100% 75%;
+    --info-foreground: 222 47% 20%;
 
     /* Business Colors */
     --profit: 160 84% 39%;
     --profit-foreground: 0 0% 100%;
     
-    --cost: 0 84% 60%;
+    --cost: 13 97% 51%;
     --cost-foreground: 0 0% 100%;
 
-    /* Sidebar */
-    --sidebar: 222 47% 11%;
+    /* Sidebar - Dark Navy */
+    --sidebar: 222 96% 21%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-accent: 217 91% 60%;
-    --sidebar-muted: 215 16% 47%;
+    --sidebar-accent: 222 95% 44%;
+    --sidebar-muted: 215 16% 67%;
 
     /* Border & Input */
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 217 91% 60%;
+    --ring: 222 95% 44%;
 
     --radius: 0.75rem;
 
     /* Badge Colors */
-    --badge-blue: 217 91% 60%;
+    --badge-blue: 222 95% 44%;
     --badge-green: 160 84% 39%;
-    --badge-red: 0 84% 60%;
+    --badge-red: 13 97% 51%;
     --badge-orange: 25 95% 53%;
     --badge-purple: 271 91% 65%;
-    --badge-gold: 45 93% 47%;
+    --badge-gold: 44 98% 55%;
     --badge-pink: 330 81% 60%;
+    --badge-yellow: 44 98% 72%;
   }
 
   .dark {
-    --background: 222 47% 11%;
+    --background: 222 47% 8%;
     --foreground: 210 40% 98%;
 
-    --card: 217 33% 17%;
+    --card: 222 47% 12%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 217 33% 17%;
+    --popover: 222 47% 12%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217 91% 60%;
+    --primary: 222 95% 44%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 33% 17%;
+    --secondary: 222 47% 16%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 17%;
+    --muted: 222 47% 16%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 222 95% 44%;
+    --accent-foreground: 0 0% 100%;
 
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
     
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 44 98% 60%;
+    --warning-foreground: 222 47% 11%;
 
-    --destructive: 0 63% 31%;
+    --destructive: 13 85% 45%;
     --destructive-foreground: 210 40% 98%;
 
-    --sidebar: 222 47% 11%;
+    --sidebar: 222 47% 8%;
     --sidebar-foreground: 210 40% 98%;
+    --sidebar-accent: 222 95% 44%;
+    --sidebar-muted: 215 20% 55%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 213 27% 84%;
+    --border: 222 47% 18%;
+    --input: 222 47% 18%;
+    --ring: 222 95% 44%;
   }
 }
 
@@ -122,7 +130,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Sora', system-ui, sans-serif;
   }
 }
 
@@ -145,6 +153,14 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.5);
   }
+
+  .gradient-fluctus {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  }
+
+  .gradient-fluctus-warm {
+    background: linear-gradient(135deg, hsl(var(--warning)) 0%, hsl(var(--destructive)) 100%);
+  }
 }
 
 @layer components {
@@ -156,6 +172,21 @@
     from {
       opacity: 0;
       transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
     }
     to {
       opacity: 1;
