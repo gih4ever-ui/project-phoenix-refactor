@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2, Pencil, Save, Phone, MapPin, User, MessageSquare, ShoppingBag, Ticket, Clock, X, Star, ChevronDown, ChevronUp, Users2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Save, Phone, MapPin, User, MessageSquare, ShoppingBag, Ticket, Clock, X, Star, ChevronDown, ChevronUp, Users2, Gift } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge, AddressForm } from "../ui";
 import { safeFixed, fetchCepData, SYSTEM_TAGS } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
@@ -7,6 +7,15 @@ import { DatabaseHook } from "@/hooks/useLocalData";
 interface ClientManagerProps {
   db: DatabaseHook;
 }
+
+const GENDER_OPTIONS = [
+  { value: "homem_cis", label: "Homem Cis" },
+  { value: "homem_trans", label: "Homem Trans" },
+  { value: "mulher_cis", label: "Mulher Cis" },
+  { value: "mulher_trans", label: "Mulher Trans" },
+  { value: "nao_binarie", label: "Pessoa não Binárie" },
+  { value: "outro", label: "Outro" },
+];
 
 export const ClientManager = ({ db }: ClientManagerProps) => {
   const { data, add, update, remove } = db;
@@ -27,7 +36,8 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
     estado: "",
     notes: "",
     rating: "new",
-    gender: "cis",
+    gender: "mulher_cis",
+    genderOther: "",
     tags: [] as string[],
   });
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -53,7 +63,13 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
     const comments = existingClient?.comments || [];
     const discounts = existingClient?.discounts || [];
     const purchases = existingClient?.purchases || [];
-    const newClient = { ...form, purchases, comments, discounts };
+    const newClient = { 
+      ...form, 
+      purchases, 
+      comments, 
+      discounts,
+      gender: form.gender === "outro" ? `outro:${form.genderOther}` : form.gender,
+    };
     if (editingId) {
       update("clients", editingId, newClient);
       setEditingId(null);
@@ -75,7 +91,8 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
       estado: "",
       notes: "",
       rating: "new",
-      gender: "cis",
+      gender: "mulher_cis",
+      genderOther: "",
       tags: [],
     });
   };
@@ -93,6 +110,20 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
     if (newTag.trim() && !availableTags.includes(newTag.trim())) {
       setAvailableTags([...availableTags, newTag.trim()]);
       setNewTag("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    // Check if any client is using this tag
+    const clientsUsingTag = clients.filter((c) => c.tags?.includes(tagToRemove));
+    if (clientsUsingTag.length > 0) {
+      alert(`Esta tag está sendo usada por ${clientsUsingTag.length} cliente(s). Remova a tag dos clientes primeiro.`);
+      return;
+    }
+    setAvailableTags(availableTags.filter((t) => t !== tagToRemove));
+    // Also remove from form if selected
+    if (form.tags?.includes(tagToRemove)) {
+      setForm({ ...form, tags: form.tags.filter((t) => t !== tagToRemove) });
     }
   };
 
@@ -114,6 +145,21 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
   const filteredClients = clients.filter((c) =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const getGenderLabel = (genderValue: string) => {
+    if (genderValue?.startsWith("outro:")) {
+      return genderValue.replace("outro:", "");
+    }
+    const option = GENDER_OPTIONS.find((o) => o.value === genderValue);
+    return option?.label || genderValue;
+  };
+
+  const getGenderEmoji = (genderValue: string) => {
+    if (genderValue === "homem_trans" || genderValue === "mulher_trans" || genderValue === "nao_binarie") {
+      return "🏳️‍⚧️";
+    }
+    return null;
+  };
 
   return (
     <div className="space-y-6">
@@ -138,9 +184,11 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
               value={form.gender}
               onChange={(e) => setForm({ ...form, gender: e.target.value })}
             >
-              <option value="cis">Homem Cis</option>
-              <option value="trans">Homem Trans</option>
-              <option value="outros">Outros</option>
+              {GENDER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="md:col-span-1">
@@ -151,6 +199,19 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
             />
           </div>
         </div>
+
+        {/* Gender Other Field */}
+        {form.gender === "outro" && (
+          <div className="mb-4">
+            <Input
+              label="Especifique o gênero"
+              value={form.genderOther}
+              onChange={(e) => setForm({ ...form, genderOther: e.target.value })}
+              placeholder="Como você se identifica?"
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <Input
             label="Email"
@@ -194,17 +255,28 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
             {availableTags.map((tag) => {
               const isSelected = form.tags?.includes(tag);
               return (
-                <button
-                  key={tag}
-                  onClick={() => handleToggleTag(tag)}
-                  className={`text-xs px-3 py-1 rounded-full border transition-all ${
-                    isSelected
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-card text-foreground border-border hover:border-primary"
-                  }`}
-                >
-                  {tag}
-                </button>
+                <div key={tag} className="relative group">
+                  <button
+                    onClick={() => handleToggleTag(tag)}
+                    className={`text-xs px-3 py-1 rounded-full border transition-all pr-6 ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-foreground border-border hover:border-primary"
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveTag(tag);
+                    }}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    title="Remover tag da lista"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -228,7 +300,8 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
                   bairro: "",
                   cidade: "",
                   estado: "",
-                  gender: "cis",
+                  gender: "mulher_cis",
+                  genderOther: "",
                   tags: [],
                   notes: "",
                   rating: "new",
@@ -252,6 +325,7 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
           const isExpanded = expandedCardId === c.id;
           let badgeColor = "bg-primary";
           if (c.rating === "gold") badgeColor = "bg-badge-gold";
+          const genderEmoji = getGenderEmoji(c.gender || "");
 
           return (
             <Card
@@ -277,7 +351,7 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
                         {c.rating === "gold" && (
                           <Star size={14} className="text-badge-gold fill-current" />
                         )}
-                        {c.gender === "trans" && <span className="text-lg">🏳️‍⚧️</span>}
+                        {genderEmoji && <span className="text-lg">{genderEmoji}</span>}
                       </h4>
                       <div className="flex gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -328,6 +402,16 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
                     >
                       <ShoppingBag size={14} /> Compras
                     </button>
+                    <button
+                      onClick={() => setActiveClientTab("promotions")}
+                      className={`flex-1 p-2 text-xs font-bold uppercase flex justify-center items-center gap-2 ${
+                        activeClientTab === "promotions"
+                          ? "text-primary border-b-2 border-primary bg-primary/5"
+                          : "text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      <Gift size={14} /> Promoções
+                    </button>
                   </div>
 
                   <div className="p-5">
@@ -349,6 +433,10 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
                               {c.birthDate
                                 ? new Date(c.birthDate).toLocaleDateString("pt-BR")
                                 : "-"}
+                            </p>
+                            <p>
+                              <span className="text-muted-foreground">Gênero:</span>{" "}
+                              {getGenderLabel(c.gender || "")}
                             </p>
                           </div>
                         </div>
@@ -433,13 +521,47 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
                         <p className="text-sm">Nenhuma compra registrada.</p>
                       </div>
                     )}
+
+                    {activeClientTab === "promotions" && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Gift size={32} className="mx-auto mb-2 opacity-30" />
+                        <p className="text-sm font-medium mb-1">Promoções do Cliente</p>
+                        <p className="text-xs">
+                          Em breve você poderá gerenciar promoções individuais e por perfil aqui.
+                        </p>
+                        {c.discounts && c.discounts.length > 0 && (
+                          <div className="mt-4 space-y-2">
+                            {c.discounts.map((d) => (
+                              <div key={d.id} className="bg-card p-3 rounded border border-border text-left">
+                                <div className="flex items-center justify-between">
+                                  <Badge color={d.used ? "red" : "green"}>
+                                    {d.used ? "Usado" : "Disponível"}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    Válido até: {new Date(d.validUntil).toLocaleDateString("pt-BR")}
+                                  </span>
+                                </div>
+                                <p className="font-semibold text-foreground mt-2">{d.code}</p>
+                                <p className="text-sm text-muted-foreground">{d.description}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex justify-end gap-2 border-t border-border pt-4 mt-6 p-3 bg-muted">
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setForm(c as any);
+                        const genderValue = c.gender || "mulher_cis";
+                        const isOther = genderValue.startsWith("outro:");
+                        setForm({
+                          ...(c as any),
+                          gender: isOther ? "outro" : genderValue,
+                          genderOther: isOther ? genderValue.replace("outro:", "") : "",
+                        });
                         setEditingId(c.id);
                         window.scrollTo({ top: 0, behavior: "smooth" });
                       }}
