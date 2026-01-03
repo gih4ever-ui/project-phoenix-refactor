@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Cake, Wand2 } from "lucide-react";
+import { useMemo, useRef } from "react";
+import { Cake, Wand2, Download, Upload } from "lucide-react";
 import { Card, Button, Badge } from "../ui";
 import { safeFixed } from "@/lib/utils";
 import { FluctusData } from "@/types/fluctus";
@@ -7,11 +7,22 @@ import { FluctusData } from "@/types/fluctus";
 interface DashboardProps {
   data: FluctusData;
   seed: () => void;
+  backup: () => void;
+  restore: (file: File) => void;
 }
 
-export const Dashboard = ({ data, seed }: DashboardProps) => {
+export const Dashboard = ({ data, seed, backup, restore }: DashboardProps) => {
   const { products, shoppingTrips, clients } = data;
   const totalSpent = (shoppingTrips || []).reduce((acc, trip) => acc + (trip.grandTotal || 0), 0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      restore(file);
+      e.target.value = '';
+    }
+  };
 
   const upcomingBirthdays = useMemo(() => {
     if (!clients) return [];
@@ -47,11 +58,26 @@ export const Dashboard = ({ data, seed }: DashboardProps) => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-3">
         <h2 className="text-2xl font-bold text-foreground">Visão Geral</h2>
-        <Button onClick={seed} variant="outline" className="text-xs gap-1">
-          <Wand2 size={14} /> Gerar Dados
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button onClick={backup} variant="outline" className="text-xs gap-1">
+            <Download size={14} /> Backup
+          </Button>
+          <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="text-xs gap-1">
+            <Upload size={14} /> Restaurar
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <Button onClick={seed} variant="ghost" className="text-xs gap-1">
+            <Wand2 size={14} /> Dados Teste
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

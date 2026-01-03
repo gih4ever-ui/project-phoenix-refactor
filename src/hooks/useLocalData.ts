@@ -54,8 +54,8 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
     const prodId1 = now + 200;
 
     const materialsData = [
-      { id: matId1, name: 'Suplex Poliamida', buyUnit: 'kg', useUnit: 'm', yield: 3.5, quotes: [{ id: now + 7, supplierId: supId1, price: 45.50, obs: 'Preço à vista' }] },
-      { id: matId2, name: 'Elástico 30mm', buyUnit: 'rolo', useUnit: 'm', yield: 50, quotes: [{ id: now + 9, supplierId: supId2, price: 25.00, obs: 'Rolo fechado' }] }
+      { id: matId1, name: 'Suplex Poliamida', buyUnit: 'kg', useUnit: 'm', yield: 3.5, composition: '80% Poliamida, 20% Elastano', quotes: [{ id: now + 7, supplierId: supId1, price: 45.50, obs: 'Preço à vista' }] },
+      { id: matId2, name: 'Elástico 30mm', buyUnit: 'rolo', useUnit: 'm', yield: 50, composition: '100% Poliéster', quotes: [{ id: now + 9, supplierId: supId2, price: 25.00, obs: 'Rolo fechado' }] }
     ];
 
     const extrasData = [
@@ -166,7 +166,34 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
     alert("Dados de teste gerados!");
   };
 
-  return { data, add, update, remove, updateFixedCosts, seed };
+  const backup = () => {
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fluctus-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const restore = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target?.result as string) as FluctusData;
+        setData(parsed);
+        alert("Dados restaurados com sucesso!");
+      } catch (error) {
+        alert("Erro ao restaurar: arquivo inválido.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  return { data, add, update, remove, updateFixedCosts, seed, backup, restore };
 };
 
 export type DatabaseHook = ReturnType<typeof useLocalData>;

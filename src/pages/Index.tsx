@@ -34,7 +34,7 @@ const Index = () => {
   const renderContent = () => {
     switch (view) {
       case "dashboard":
-        return <Dashboard data={db.data} seed={db.seed} />;
+        return <Dashboard data={db.data} seed={db.seed} backup={db.backup} restore={db.restore} />;
       case "catalog":
         return <Catalog db={db} />;
       case "suppliers":
@@ -52,7 +52,7 @@ const Index = () => {
       case "financial":
         return <FixedCosts db={db} />;
       default:
-        return <Dashboard data={db.data} seed={db.seed} />;
+        return <Dashboard data={db.data} seed={db.seed} backup={db.backup} restore={db.restore} />;
     }
   };
 

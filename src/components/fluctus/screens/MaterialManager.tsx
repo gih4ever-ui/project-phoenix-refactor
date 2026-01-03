@@ -19,6 +19,7 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
     buyUnit: "kg",
     useUnit: "m",
     yield: 1,
+    composition: "",
     quotes: [] as Quote[],
   });
   const [quoteForm, setQuoteForm] = useState({ supplierId: "", price: "", obs: "" });
@@ -32,7 +33,7 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
     } else {
       add("materials", { ...newMat, createdAt: new Date() });
     }
-    setNewMat({ name: "", buyUnit: "kg", useUnit: "m", yield: 1, quotes: [] });
+    setNewMat({ name: "", buyUnit: "kg", useUnit: "m", yield: 1, composition: "", quotes: [] });
   };
 
   const handleEditMaterial = (mat: any) => {
@@ -80,7 +81,7 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
           {editingMatId ? "Editar Material" : "Novo Material"}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-          <div className="md:col-span-5">
+          <div className="md:col-span-4">
             <Input
               label="Nome do Material"
               value={newMat.name}
@@ -114,12 +115,20 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
             />
           </div>
         </div>
+        <div className="mt-4">
+          <Input
+            label="Composição (para etiqueta)"
+            value={newMat.composition}
+            onChange={(e) => setNewMat({ ...newMat, composition: e.target.value })}
+            placeholder="Ex: 80% Poliamida, 20% Elastano"
+          />
+        </div>
         <div className="mt-4 flex justify-end gap-2">
           {editingMatId && (
             <Button
               onClick={() => {
                 setEditingMatId(null);
-                setNewMat({ name: "", buyUnit: "kg", useUnit: "m", yield: 1, quotes: [] });
+                setNewMat({ name: "", buyUnit: "kg", useUnit: "m", yield: 1, composition: "", quotes: [] });
               }}
               variant="ghost"
             >
@@ -168,10 +177,15 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                     </button>
                   </div>
                 </div>
-                <div className="flex flex-row flex-wrap gap-6 text-sm text-muted-foreground mb-3 items-center">
+                <div className="flex flex-row flex-wrap gap-4 text-sm text-muted-foreground mb-3 items-center">
                   <span className="bg-muted px-2 py-1 rounded">
                     Rendimento: <b>{m.yield} {m.useUnit}</b> por {m.buyUnit}
                   </span>
+                  {m.composition && (
+                    <span className="bg-primary/10 text-primary px-2 py-1 rounded">
+                      Composição: <b>{m.composition}</b>
+                    </span>
+                  )}
                 </div>
                 {!isEditing && sortedQuotes.length > 0 && (
                   <div className="w-full border-t border-border/50 mt-1 pt-2 flex flex-wrap gap-2">
