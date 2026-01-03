@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Plus, Trash2, Pencil, Star, Sparkles, X, Save } from "lucide-react";
+import { Plus, Trash2, Pencil, Star, Sparkles, X, Save, Check } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge } from "../ui";
 import { safeFixed } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
-import { Quote } from "@/types/fluctus";
+import { Quote, Material } from "@/types/fluctus";
 
 interface MaterialManagerProps {
   db: DatabaseHook;
@@ -62,9 +62,31 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
     setQuoteForm({ supplierId: "", price: "", obs: "" });
   };
 
-  const handleDeleteQuote = (materialId: number, quoteId: number, currentQuotes: Quote[]) => {
+  const handleDeleteQuote = (materialId: number, quoteId: number, currentQuotes: Quote[], mat: Material) => {
     const updatedQuotes = currentQuotes.filter((q) => q.id !== quoteId);
-    update("materials", materialId, { quotes: updatedQuotes });
+    // If we deleted the selected quote, clear the selection
+    const updates: Partial<Material> = { quotes: updatedQuotes };
+    if (mat.selectedQuoteId === quoteId) {
+      updates.selectedQuoteId = undefined;
+    }
+    update("materials", materialId, updates);
+  };
+
+  const handleSelectQuote = (materialId: number, quoteId: number) => {
+    const mat = materials.find((m) => m.id === materialId);
+    if (!mat) return;
+    // Toggle: if already selected, unselect (use cheapest)
+    const newSelectedId = mat.selectedQuoteId === quoteId ? undefined : quoteId;
+    update("materials", materialId, { selectedQuoteId: newSelectedId });
+  };
+
+  const getActiveQuote = (mat: Material): Quote | undefined => {
+    if (mat.selectedQuoteId) {
+      return mat.quotes.find((q) => q.id === mat.selectedQuoteId);
+    }
+    // Default: cheapest
+    const sorted = [...mat.quotes].sort((a, b) => a.price - b.price);
+    return sorted[0];
   };
 
   const sortedSuppliers = [...suppliers].sort((a, b) => a.name.localeCompare(b.name));
@@ -189,25 +211,33 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                 </div>
                 {!isEditing && sortedQuotes.length > 0 && (
                   <div className="w-full border-t border-border/50 mt-1 pt-2 flex flex-wrap gap-2">
-                    {sortedQuotes.map((q, idx) => (
-                      <div
-                        key={q.id}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs border ${
-                          idx === 0
-                            ? "bg-success/10 text-success border-success/20"
-                            : "bg-muted text-muted-foreground border-border"
-                        }`}
-                        title={q.obs}
-                      >
-                        {idx === 0 && <Star size={12} className="text-badge-gold fill-current" />}
-                        <span className="font-semibold">
-                          {suppliers.find((s) => s.id == q.supplierId)?.name}
-                        </span>
-                        <span className="font-bold">
-                          R$ {safeFixed(q.price)}/{m.buyUnit}
-                        </span>
-                      </div>
-                    ))}
+                    {sortedQuotes.map((q, idx) => {
+                      const isSelected = m.selectedQuoteId ? m.selectedQuoteId === q.id : idx === 0;
+                      const isCheapest = idx === 0;
+                      return (
+                        <button
+                          key={q.id}
+                          onClick={() => handleSelectQuote(m.id, q.id)}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs border transition-all ${
+                            isSelected
+                              ? "bg-primary/10 text-primary border-primary/40 ring-2 ring-primary/20"
+                              : isCheapest
+                              ? "bg-success/10 text-success border-success/20"
+                              : "bg-muted text-muted-foreground border-border hover:border-primary/30"
+                          }`}
+                          title={`${q.obs || ""} - Clique para ${isSelected ? "desmarcar" : "usar esta cotação"}`}
+                        >
+                          {isSelected && <Check size={12} className="text-primary" />}
+                          {isCheapest && !isSelected && <Star size={12} className="text-badge-gold fill-current" />}
+                          <span className="font-semibold">
+                            {suppliers.find((s) => s.id == q.supplierId)?.name}
+                          </span>
+                          <span className="font-bold">
+                            R$ {safeFixed(q.price)}/{m.buyUnit}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -224,18 +254,25 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                       <Plus size={12} /> Nova
                     </Button>
                   </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    <Star size={10} className="inline text-badge-gold fill-current mr-1" /> = mais barata | 
+                    <Check size={10} className="inline text-primary ml-2 mr-1" /> = selecionada para cálculo
+                  </p>
                   <div className="space-y-2 mb-4 bg-card rounded-lg border border-border p-1 shadow-sm">
                     {sortedQuotes.map((q, idx) => {
                       const supName = suppliers.find((s) => s.id == q.supplierId)?.name || "Desconhecido";
+                      const isSelected = m.selectedQuoteId ? m.selectedQuoteId === q.id : idx === 0;
+                      const isCheapest = idx === 0;
                       return (
                         <div
                           key={q.id}
                           className={`flex justify-between items-center text-sm p-3 border-b last:border-0 border-border ${
-                            idx === 0 ? "bg-success/5" : ""
+                            isSelected ? "bg-primary/5" : isCheapest ? "bg-success/5" : ""
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            {idx === 0 && <Sparkles size={14} className="text-badge-gold fill-current" />}
+                            {isSelected && <Check size={14} className="text-primary" />}
+                            {isCheapest && !isSelected && <Sparkles size={14} className="text-badge-gold fill-current" />}
                             <div className="flex flex-col">
                               <span className="font-medium text-foreground">{supName}</span>
                               {q.obs && <span className="text-xs text-muted-foreground italic">{q.obs}</span>}
@@ -244,6 +281,17 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                           <div className="flex items-center gap-3">
                             <span className="font-bold text-foreground">R$ {safeFixed(q.price)}</span>
                             <div className="flex gap-1">
+                              <button
+                                onClick={() => handleSelectQuote(m.id, q.id)}
+                                className={`p-1.5 rounded ${
+                                  isSelected
+                                    ? "bg-primary/20 text-primary"
+                                    : "hover:bg-primary/10 text-muted-foreground hover:text-primary"
+                                }`}
+                                title={isSelected ? "Usando esta cotação" : "Usar esta cotação"}
+                              >
+                                <Check size={14} />
+                              </button>
                               <button
                                 onClick={() => {
                                   setQuoteForm({ supplierId: String(q.supplierId), price: String(q.price), obs: q.obs || "" });
@@ -254,7 +302,7 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                                 <Pencil size={14} />
                               </button>
                               <button
-                                onClick={() => handleDeleteQuote(m.id, q.id, m.quotes)}
+                                onClick={() => handleDeleteQuote(m.id, q.id, m.quotes, m)}
                                 className="p-1.5 hover:bg-destructive/10 rounded text-destructive"
                               >
                                 <X size={14} />

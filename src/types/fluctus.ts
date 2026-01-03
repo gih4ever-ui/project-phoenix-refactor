@@ -16,6 +16,7 @@ export interface Material {
   composition?: string;
   price?: number;
   quotes: Quote[];
+  selectedQuoteId?: number; // Which quote to use for pricing calculations
   createdAt?: Date;
 }
 
@@ -27,6 +28,7 @@ export interface Extra {
   yield: number;
   price?: number;
   quotes: Quote[];
+  selectedQuoteId?: number; // Which quote to use for pricing calculations
   createdAt?: Date;
 }
 
@@ -68,6 +70,9 @@ export interface Variation {
   name: string;
   combination: string[];
   active: boolean;
+  // Override materials/extras for this specific variation (inherits from product base if empty)
+  materials?: ProductMaterial[];
+  selectedExtras?: ProductExtra[];
 }
 
 export interface ProductMaterial {

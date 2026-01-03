@@ -43,16 +43,39 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
+  const [editingVariationId, setEditingVariationId] = useState<number | null>(null);
 
   // Variation Type Form
   const [newVariationType, setNewVariationType] = useState({ name: "", options: "" });
+
+  // Helper: get the active price for a material (uses selectedQuoteId or cheapest)
+  const getMaterialPrice = (mat: typeof materials[0]) => {
+    if (mat.selectedQuoteId) {
+      const selectedQuote = mat.quotes.find((q) => q.id === mat.selectedQuoteId);
+      if (selectedQuote) return selectedQuote.price;
+    }
+    // Fallback to cheapest
+    const sortedQuotes = [...mat.quotes].sort((a, b) => a.price - b.price);
+    return sortedQuotes[0]?.price || mat.price || 0;
+  };
+
+  // Helper: get the active price for an extra (uses selectedQuoteId or cheapest)
+  const getExtraPrice = (ext: typeof extras[0]) => {
+    if (ext.selectedQuoteId) {
+      const selectedQuote = ext.quotes.find((q) => q.id === ext.selectedQuoteId);
+      if (selectedQuote) return selectedQuote.price;
+    }
+    // Fallback to cheapest
+    const sortedQuotes = [...ext.quotes].sort((a, b) => a.price - b.price);
+    return sortedQuotes[0]?.price || ext.price || 0;
+  };
 
   // Calculate costs
   const materialCost = useMemo(() => {
     return form.materials.reduce((sum, pm) => {
       const mat = materials.find((m) => m.id == pm.materialId);
       if (!mat) return sum;
-      const price = mat.price || (mat.quotes[0]?.price || 0);
+      const price = getMaterialPrice(mat);
       const unitCost = price / (mat.yield || 1);
       return sum + unitCost * pm.quantity;
     }, 0);
@@ -62,7 +85,7 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
     return form.selectedExtras.reduce((sum, pe) => {
       const ext = extras.find((e) => e.id == pe.extraId);
       if (!ext) return sum;
-      const price = ext.price || (ext.quotes[0]?.price || 0);
+      const price = getExtraPrice(ext);
       const unitCost = price / (ext.yield || 1);
       return sum + unitCost * pe.quantity;
     }, 0);
@@ -179,11 +202,15 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
     const optionsArrays = types.map((t) => t.options);
     const combinations = combine(optionsArrays);
 
+    // Inherit materials and extras from base product
     return combinations.map((combo, idx) => ({
       id: Date.now() + idx,
       name: combo.join(" / "),
       combination: combo,
       active: true,
+      // Each variation inherits from base - can be customized later
+      materials: form.materials.map((m) => ({ ...m, id: Date.now() + idx * 1000 + m.id })),
+      selectedExtras: form.selectedExtras.map((e) => ({ ...e, id: Date.now() + idx * 2000 + e.id })),
     }));
   };
 
@@ -194,6 +221,120 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
         v.id === id ? { ...v, active: !v.active } : v
       ),
     });
+  };
+
+  // Update variation materials
+  const handleUpdateVariationMaterial = (variationId: number, materialPmId: number, field: string, value: any) => {
+    setForm({
+      ...form,
+      variations: form.variations.map((v) => {
+        if (v.id !== variationId) return v;
+        return {
+          ...v,
+          materials: (v.materials || []).map((pm) =>
+            pm.id === materialPmId ? { ...pm, [field]: value } : pm
+          ),
+        };
+      }),
+    });
+  };
+
+  const handleAddVariationMaterial = (variationId: number) => {
+    if (materials.length === 0) return;
+    setForm({
+      ...form,
+      variations: form.variations.map((v) => {
+        if (v.id !== variationId) return v;
+        return {
+          ...v,
+          materials: [
+            ...(v.materials || []),
+            { id: Date.now(), materialId: materials[0].id, quantity: 1 },
+          ],
+        };
+      }),
+    });
+  };
+
+  const handleRemoveVariationMaterial = (variationId: number, materialPmId: number) => {
+    setForm({
+      ...form,
+      variations: form.variations.map((v) => {
+        if (v.id !== variationId) return v;
+        return {
+          ...v,
+          materials: (v.materials || []).filter((pm) => pm.id !== materialPmId),
+        };
+      }),
+    });
+  };
+
+  // Update variation extras
+  const handleUpdateVariationExtra = (variationId: number, extraPeId: number, field: string, value: any) => {
+    setForm({
+      ...form,
+      variations: form.variations.map((v) => {
+        if (v.id !== variationId) return v;
+        return {
+          ...v,
+          selectedExtras: (v.selectedExtras || []).map((pe) =>
+            pe.id === extraPeId ? { ...pe, [field]: value } : pe
+          ),
+        };
+      }),
+    });
+  };
+
+  const handleAddVariationExtra = (variationId: number) => {
+    if (extras.length === 0) return;
+    setForm({
+      ...form,
+      variations: form.variations.map((v) => {
+        if (v.id !== variationId) return v;
+        return {
+          ...v,
+          selectedExtras: [
+            ...(v.selectedExtras || []),
+            { id: Date.now(), extraId: extras[0].id, quantity: 1 },
+          ],
+        };
+      }),
+    });
+  };
+
+  const handleRemoveVariationExtra = (variationId: number, extraPeId: number) => {
+    setForm({
+      ...form,
+      variations: form.variations.map((v) => {
+        if (v.id !== variationId) return v;
+        return {
+          ...v,
+          selectedExtras: (v.selectedExtras || []).filter((pe) => pe.id !== extraPeId),
+        };
+      }),
+    });
+  };
+
+  // Calculate variation cost
+  const getVariationCost = (variation: Variation) => {
+    const varMaterials = variation.materials || form.materials;
+    const varExtras = variation.selectedExtras || form.selectedExtras;
+    
+    const matCost = varMaterials.reduce((sum, pm) => {
+      const mat = materials.find((m) => m.id == pm.materialId);
+      if (!mat) return sum;
+      const price = getMaterialPrice(mat);
+      return sum + (price / (mat.yield || 1)) * pm.quantity;
+    }, 0);
+
+    const extCost = varExtras.reduce((sum, pe) => {
+      const ext = extras.find((e) => e.id == pe.extraId);
+      if (!ext) return sum;
+      const price = getExtraPrice(ext);
+      return sum + (price / (ext.yield || 1)) * pe.quantity;
+    }, 0);
+
+    return matCost + extCost + form.laborCost;
   };
 
   const handleSave = () => {
@@ -441,22 +582,171 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
               {form.variations.length > 0 && (
                 <div className="mt-4">
                   <p className="text-xs text-muted-foreground mb-2 font-semibold uppercase">
-                    Combinações Geradas ({form.variations.filter((v) => v.active).length} ativas)
+                    Combinações Geradas ({form.variations.filter((v) => v.active).length} ativas) - Clique para ativar/desativar, botão editar para personalizar materiais
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {form.variations.map((v) => (
-                      <button
-                        key={v.id}
-                        onClick={() => handleToggleVariation(v.id)}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                          v.active
-                            ? "bg-success text-success-foreground border-success"
-                            : "bg-muted text-muted-foreground border-border line-through"
-                        }`}
-                      >
-                        {v.name}
-                      </button>
-                    ))}
+                  <div className="space-y-2">
+                    {form.variations.map((v) => {
+                      const varCost = getVariationCost(v);
+                      const isEditing = editingVariationId === v.id;
+                      return (
+                        <div key={v.id} className="border border-border rounded-lg overflow-hidden">
+                          <div
+                            className={`flex items-center justify-between p-2 ${
+                              v.active ? "bg-success/10" : "bg-muted"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => handleToggleVariation(v.id)}
+                                className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                                  v.active
+                                    ? "bg-success text-success-foreground border-success"
+                                    : "bg-muted text-muted-foreground border-border line-through"
+                                }`}
+                              >
+                                {v.name}
+                              </button>
+                              <span className="text-xs text-muted-foreground">
+                                Custo: <strong className="text-foreground">R$ {safeFixed(varCost)}</strong>
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => setEditingVariationId(isEditing ? null : v.id)}
+                              className={`text-xs px-2 py-1 rounded border transition-all ${
+                                isEditing
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-card text-muted-foreground border-border hover:border-primary"
+                              }`}
+                            >
+                              <Pencil size={12} className="inline mr-1" />
+                              {isEditing ? "Fechar" : "Editar Materiais"}
+                            </button>
+                          </div>
+
+                          {isEditing && (
+                            <div className="p-3 bg-card border-t border-border space-y-3">
+                              {/* Variation Materials */}
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-semibold text-muted-foreground uppercase">
+                                    Materiais desta variação
+                                  </span>
+                                  <Button
+                                    onClick={() => handleAddVariationMaterial(v.id)}
+                                    variant="secondary"
+                                    className="h-6 text-xs px-2"
+                                  >
+                                    <Plus size={12} /> Material
+                                  </Button>
+                                </div>
+                                {(v.materials || []).length === 0 ? (
+                                  <p className="text-xs text-muted-foreground italic">Sem materiais específicos</p>
+                                ) : (
+                                  <div className="space-y-1">
+                                    {(v.materials || []).map((pm) => {
+                                      const mat = materials.find((m) => m.id == pm.materialId);
+                                      return (
+                                        <div key={pm.id} className="flex items-center gap-2 text-xs">
+                                          <select
+                                            className="flex-1 border border-input rounded p-1 bg-card text-foreground text-xs"
+                                            value={pm.materialId}
+                                            onChange={(e) =>
+                                              handleUpdateVariationMaterial(v.id, pm.id, "materialId", Number(e.target.value))
+                                            }
+                                          >
+                                            {materials.map((m) => (
+                                              <option key={m.id} value={m.id}>
+                                                {m.name}
+                                              </option>
+                                            ))}
+                                          </select>
+                                          <input
+                                            type="number"
+                                            className="w-16 border border-input rounded p-1 text-xs text-center bg-card text-foreground"
+                                            value={pm.quantity}
+                                            onChange={(e) =>
+                                              handleUpdateVariationMaterial(v.id, pm.id, "quantity", Number(e.target.value))
+                                            }
+                                            min={0}
+                                            step={0.01}
+                                          />
+                                          <span className="text-muted-foreground">{mat?.useUnit}</span>
+                                          <button
+                                            onClick={() => handleRemoveVariationMaterial(v.id, pm.id)}
+                                            className="text-muted-foreground hover:text-destructive"
+                                          >
+                                            <X size={14} />
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Variation Extras */}
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-semibold text-muted-foreground uppercase">
+                                    Extras desta variação
+                                  </span>
+                                  <Button
+                                    onClick={() => handleAddVariationExtra(v.id)}
+                                    variant="secondary"
+                                    className="h-6 text-xs px-2"
+                                  >
+                                    <Plus size={12} /> Extra
+                                  </Button>
+                                </div>
+                                {(v.selectedExtras || []).length === 0 ? (
+                                  <p className="text-xs text-muted-foreground italic">Sem extras específicos</p>
+                                ) : (
+                                  <div className="space-y-1">
+                                    {(v.selectedExtras || []).map((pe) => {
+                                      const ext = extras.find((e) => e.id == pe.extraId);
+                                      return (
+                                        <div key={pe.id} className="flex items-center gap-2 text-xs">
+                                          <select
+                                            className="flex-1 border border-input rounded p-1 bg-card text-foreground text-xs"
+                                            value={pe.extraId}
+                                            onChange={(e) =>
+                                              handleUpdateVariationExtra(v.id, pe.id, "extraId", Number(e.target.value))
+                                            }
+                                          >
+                                            {extras.map((ex) => (
+                                              <option key={ex.id} value={ex.id}>
+                                                {ex.name}
+                                              </option>
+                                            ))}
+                                          </select>
+                                          <input
+                                            type="number"
+                                            className="w-16 border border-input rounded p-1 text-xs text-center bg-card text-foreground"
+                                            value={pe.quantity}
+                                            onChange={(e) =>
+                                              handleUpdateVariationExtra(v.id, pe.id, "quantity", Number(e.target.value))
+                                            }
+                                            min={0}
+                                            step={0.01}
+                                          />
+                                          <span className="text-muted-foreground">{ext?.useUnit}</span>
+                                          <button
+                                            onClick={() => handleRemoveVariationExtra(v.id, pe.id)}
+                                            className="text-muted-foreground hover:text-destructive"
+                                          >
+                                            <X size={14} />
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
