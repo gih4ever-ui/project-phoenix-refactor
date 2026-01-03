@@ -13,6 +13,7 @@ export interface Material {
   buyUnit: string;
   useUnit: string;
   yield: number;
+  composition?: string;
   price?: number;
   quotes: Quote[];
   createdAt?: Date;
