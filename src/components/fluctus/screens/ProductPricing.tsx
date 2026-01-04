@@ -43,10 +43,11 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
-  const [editingVariationId, setEditingVariationId] = useState<number | null>(null);
 
   // Variation Type Form
-  const [newVariationType, setNewVariationType] = useState({ name: "", options: "" });
+  const [newVariationType, setNewVariationType] = useState("");
+  const [newOptionForType, setNewOptionForType] = useState<{ [key: number]: string }>({});
+  const [editingVariationId, setEditingVariationId] = useState<number | null>(null);
 
   // Helper: get the active price for a material (uses selectedQuoteId or cheapest)
   const getMaterialPrice = (mat: typeof materials[0]) => {
@@ -166,26 +167,95 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
     });
   };
 
+  // Add a new variation type (e.g., "Cor", "Tamanho")
   const handleAddVariationType = () => {
-    if (!newVariationType.name.trim() || !newVariationType.options.trim()) return;
-    const options = newVariationType.options.split(",").map((o) => o.trim()).filter(Boolean);
+    if (!newVariationType.trim()) return;
     const newType: VariationType = {
       id: Date.now(),
-      name: newVariationType.name.trim(),
-      options,
+      name: newVariationType.trim(),
+      options: [],
     };
-    const newVariationTypes = [...form.variationTypes, newType];
+    setForm({
+      ...form,
+      variationTypes: [...form.variationTypes, newType],
+    });
+    setNewVariationType("");
+  };
+
+  // Remove a variation type entirely
+  const handleRemoveVariationType = (id: number) => {
+    const newVariationTypes = form.variationTypes.filter((vt) => vt.id !== id);
     const newVariations = generateVariations(newVariationTypes, form.variations);
     setForm({
       ...form,
       variationTypes: newVariationTypes,
       variations: newVariations,
     });
-    setNewVariationType({ name: "", options: "" });
   };
 
-  const handleRemoveVariationType = (id: number) => {
-    const newVariationTypes = form.variationTypes.filter((vt) => vt.id !== id);
+  // Add an option to a variation type
+  const handleAddOptionToType = (typeId: number) => {
+    const optionText = newOptionForType[typeId]?.trim();
+    if (!optionText) return;
+    
+    const newVariationTypes = form.variationTypes.map((vt) =>
+      vt.id === typeId ? { ...vt, options: [...vt.options, optionText] } : vt
+    );
+    const newVariations = generateVariations(newVariationTypes, form.variations);
+    setForm({
+      ...form,
+      variationTypes: newVariationTypes,
+      variations: newVariations,
+    });
+    setNewOptionForType({ ...newOptionForType, [typeId]: "" });
+  };
+
+  // Remove an option from a variation type
+  const handleRemoveOptionFromType = (typeId: number, optionIndex: number) => {
+    const newVariationTypes = form.variationTypes.map((vt) => {
+      if (vt.id !== typeId) return vt;
+      const newOptions = vt.options.filter((_, idx) => idx !== optionIndex);
+      return { ...vt, options: newOptions };
+    });
+    const newVariations = generateVariations(newVariationTypes, form.variations);
+    setForm({
+      ...form,
+      variationTypes: newVariationTypes,
+      variations: newVariations,
+    });
+  };
+
+  // Move a variation type up or down
+  const handleMoveVariationType = (id: number, direction: "up" | "down") => {
+    const idx = form.variationTypes.findIndex((vt) => vt.id === id);
+    if (idx === -1) return;
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === form.variationTypes.length - 1) return;
+
+    const newTypes = [...form.variationTypes];
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    [newTypes[idx], newTypes[swapIdx]] = [newTypes[swapIdx], newTypes[idx]];
+
+    const newVariations = generateVariations(newTypes, form.variations);
+    setForm({
+      ...form,
+      variationTypes: newTypes,
+      variations: newVariations,
+    });
+  };
+
+  // Move an option within a variation type
+  const handleMoveOption = (typeId: number, optionIndex: number, direction: "up" | "down") => {
+    const newVariationTypes = form.variationTypes.map((vt) => {
+      if (vt.id !== typeId) return vt;
+      const newOptions = [...vt.options];
+      if (direction === "up" && optionIndex === 0) return vt;
+      if (direction === "down" && optionIndex === newOptions.length - 1) return vt;
+      
+      const swapIdx = direction === "up" ? optionIndex - 1 : optionIndex + 1;
+      [newOptions[optionIndex], newOptions[swapIdx]] = [newOptions[swapIdx], newOptions[optionIndex]];
+      return { ...vt, options: newOptions };
+    });
     const newVariations = generateVariations(newVariationTypes, form.variations);
     setForm({
       ...form,
@@ -573,19 +643,14 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
           <h4 className="font-semibold text-foreground flex items-center gap-2 mb-3">
             <Layers size={18} className="text-success" /> Variações
           </h4>
-          <div className="flex flex-col md:flex-row gap-3 mb-4">
+          
+          {/* Add new variation type */}
+          <div className="flex gap-3 mb-4">
             <Input
-              label="Tipo de Variação"
-              value={newVariationType.name}
-              onChange={(e) => setNewVariationType({ ...newVariationType, name: e.target.value })}
+              label="Nome do Tipo de Variação"
+              value={newVariationType}
+              onChange={(e) => setNewVariationType(e.target.value)}
               placeholder="Ex: Cor, Tamanho, Aroma"
-              className="flex-1"
-            />
-            <Input
-              label="Opções (separadas por vírgula)"
-              value={newVariationType.options}
-              onChange={(e) => setNewVariationType({ ...newVariationType, options: e.target.value })}
-              placeholder="Ex: Vermelho, Azul, Verde"
               className="flex-1"
             />
             <div className="flex items-end">
@@ -595,21 +660,100 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
             </div>
           </div>
 
+          {/* Variation Types List */}
           {form.variationTypes.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {form.variationTypes.map((vt) => (
-                  <Badge key={vt.id} color="blue" className="flex items-center gap-2 py-1.5 px-3">
-                    <strong>{vt.name}:</strong> {vt.options.join(", ")}
-                    <button
-                      onClick={() => handleRemoveVariationType(vt.id)}
-                      className="ml-1 hover:text-destructive"
+            <div className="space-y-4">
+              {form.variationTypes.map((vt, vtIndex) => (
+                <div key={vt.id} className="bg-card border border-border rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground">{vt.name}</span>
+                      <Badge color="blue" className="text-xs">{vt.options.length} opções</Badge>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleMoveVariationType(vt.id, "up")}
+                        disabled={vtIndex === 0}
+                        className="p-1 hover:bg-muted rounded disabled:opacity-30"
+                        title="Mover para cima"
+                      >
+                        <ChevronUp size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleMoveVariationType(vt.id, "down")}
+                        disabled={vtIndex === form.variationTypes.length - 1}
+                        className="p-1 hover:bg-muted rounded disabled:opacity-30"
+                        title="Mover para baixo"
+                      >
+                        <ChevronDown size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleRemoveVariationType(vt.id)}
+                        className="p-1 hover:bg-destructive/10 text-destructive rounded"
+                        title="Remover tipo"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Options list */}
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {vt.options.map((option, optIndex) => (
+                      <div
+                        key={optIndex}
+                        className="flex items-center gap-1 bg-muted border border-border rounded-full px-2 py-1 text-sm"
+                      >
+                        <button
+                          onClick={() => handleMoveOption(vt.id, optIndex, "up")}
+                          disabled={optIndex === 0}
+                          className="p-0.5 hover:bg-card rounded disabled:opacity-30"
+                        >
+                          <ChevronUp size={12} />
+                        </button>
+                        <span>{option}</span>
+                        <button
+                          onClick={() => handleMoveOption(vt.id, optIndex, "down")}
+                          disabled={optIndex === vt.options.length - 1}
+                          className="p-0.5 hover:bg-card rounded disabled:opacity-30"
+                        >
+                          <ChevronDown size={12} />
+                        </button>
+                        <button
+                          onClick={() => handleRemoveOptionFromType(vt.id, optIndex)}
+                          className="p-0.5 hover:text-destructive"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Add option input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      className="flex-1 border border-input rounded px-2 py-1 text-sm bg-card text-foreground"
+                      placeholder="Nova opção..."
+                      value={newOptionForType[vt.id] || ""}
+                      onChange={(e) => setNewOptionForType({ ...newOptionForType, [vt.id]: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddOptionToType(vt.id);
+                        }
+                      }}
+                    />
+                    <Button
+                      onClick={() => handleAddOptionToType(vt.id)}
+                      variant="secondary"
+                      className="h-8 text-xs"
                     >
-                      <X size={12} />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
+                      <Plus size={14} /> Adicionar
+                    </Button>
+                  </div>
+                </div>
+              ))}
 
               {form.variations.length > 0 && (
                 <div className="mt-4">
