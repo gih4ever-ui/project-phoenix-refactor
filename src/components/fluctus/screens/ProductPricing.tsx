@@ -14,7 +14,7 @@ import {
   Copy,
 } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge } from "../ui";
-import { safeFixed } from "@/lib/utils";
+import { safeFixed, safeCeil } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 import { Product, VariationType, Variation, ProductMaterial, ProductExtra } from "@/types/fluctus";
 
@@ -70,13 +70,18 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
     return sortedQuotes[0]?.price || ext.price || 0;
   };
 
+  // Helper: get unit cost always rounding UP to avoid zero costs
+  const getUnitCost = (price: number, yieldVal: number): number => {
+    return safeCeil(price / (yieldVal || 1));
+  };
+
   // Calculate costs
   const materialCost = useMemo(() => {
     return form.materials.reduce((sum, pm) => {
       const mat = materials.find((m) => m.id == pm.materialId);
       if (!mat) return sum;
       const price = getMaterialPrice(mat);
-      const unitCost = price / (mat.yield || 1);
+      const unitCost = getUnitCost(price, mat.yield || 1);
       return sum + unitCost * pm.quantity;
     }, 0);
   }, [form.materials, materials]);
@@ -86,7 +91,7 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
       const ext = extras.find((e) => e.id == pe.extraId);
       if (!ext) return sum;
       const price = getExtraPrice(ext);
-      const unitCost = price / (ext.yield || 1);
+      const unitCost = getUnitCost(price, ext.yield || 1);
       return sum + unitCost * pe.quantity;
     }, 0);
   }, [form.selectedExtras, extras]);
@@ -170,7 +175,7 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
       options,
     };
     const newVariationTypes = [...form.variationTypes, newType];
-    const newVariations = generateVariations(newVariationTypes);
+    const newVariations = generateVariations(newVariationTypes, form.variations);
     setForm({
       ...form,
       variationTypes: newVariationTypes,
@@ -181,7 +186,7 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
 
   const handleRemoveVariationType = (id: number) => {
     const newVariationTypes = form.variationTypes.filter((vt) => vt.id !== id);
-    const newVariations = generateVariations(newVariationTypes);
+    const newVariations = generateVariations(newVariationTypes, form.variations);
     setForm({
       ...form,
       variationTypes: newVariationTypes,
@@ -189,7 +194,7 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
     });
   };
 
-  const generateVariations = (types: VariationType[]): Variation[] => {
+  const generateVariations = (types: VariationType[], existingVariations: Variation[]): Variation[] => {
     if (types.length === 0) return [];
     
     const combine = (arrays: string[][]): string[][] => {
@@ -202,16 +207,32 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
     const optionsArrays = types.map((t) => t.options);
     const combinations = combine(optionsArrays);
 
-    // Inherit materials and extras from base product
-    return combinations.map((combo, idx) => ({
-      id: Date.now() + idx,
-      name: combo.join(" / "),
-      combination: combo,
-      active: true,
-      // Each variation inherits from base - can be customized later
-      materials: form.materials.map((m) => ({ ...m, id: Date.now() + idx * 1000 + m.id })),
-      selectedExtras: form.selectedExtras.map((e) => ({ ...e, id: Date.now() + idx * 2000 + e.id })),
-    }));
+    // Map existing variations by their combination string for preservation
+    const existingMap = new Map<string, Variation>();
+    existingVariations.forEach((v) => {
+      existingMap.set(v.name, v);
+    });
+
+    // Preserve existing variations or create new ones
+    return combinations.map((combo, idx) => {
+      const name = combo.join(" / ");
+      const existing = existingMap.get(name);
+      
+      if (existing) {
+        // Keep existing variation data (materials, extras, active state)
+        return existing;
+      }
+      
+      // Create new variation inheriting from base
+      return {
+        id: Date.now() + idx,
+        name,
+        combination: combo,
+        active: true,
+        materials: form.materials.map((m) => ({ ...m, id: Date.now() + idx * 1000 + m.id })),
+        selectedExtras: form.selectedExtras.map((e) => ({ ...e, id: Date.now() + idx * 2000 + e.id })),
+      };
+    });
   };
 
   const handleToggleVariation = (id: number) => {
@@ -324,17 +345,28 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
       const mat = materials.find((m) => m.id == pm.materialId);
       if (!mat) return sum;
       const price = getMaterialPrice(mat);
-      return sum + (price / (mat.yield || 1)) * pm.quantity;
+      return sum + getUnitCost(price, mat.yield || 1) * pm.quantity;
     }, 0);
 
     const extCost = varExtras.reduce((sum, pe) => {
       const ext = extras.find((e) => e.id == pe.extraId);
       if (!ext) return sum;
       const price = getExtraPrice(ext);
-      return sum + (price / (ext.yield || 1)) * pe.quantity;
+      return sum + getUnitCost(price, ext.yield || 1) * pe.quantity;
     }, 0);
 
     return matCost + extCost + form.laborCost;
+  };
+
+  // Toggle variation directly on a saved product (without entering edit mode)
+  const handleToggleProductVariation = (productId: number, variationId: number) => {
+    const product = products.find((p) => p.id === productId);
+    if (!product || !product.variations) return;
+    
+    const updatedVariations = product.variations.map((v) =>
+      v.id === variationId ? { ...v, active: !v.active } : v
+    );
+    update("products", productId, { variations: updatedVariations });
   };
 
   const handleSave = () => {
@@ -945,12 +977,25 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
 
                   {p.variations && p.variations.length > 0 && (
                     <div className="mb-4">
-                      <p className="text-xs text-muted-foreground uppercase font-semibold mb-2">Variações</p>
+                      <p className="text-xs text-muted-foreground uppercase font-semibold mb-2">
+                        Variações (clique para ativar/desativar)
+                      </p>
                       <div className="flex flex-wrap gap-2">
                         {p.variations.map((v) => (
-                          <Badge key={v.id} color={v.active ? "green" : "red"}>
+                          <button
+                            key={v.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleProductVariation(p.id, v.id);
+                            }}
+                            className={`text-xs px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
+                              v.active
+                                ? "bg-success text-success-foreground border-success hover:bg-success/80"
+                                : "bg-muted text-muted-foreground border-border line-through hover:bg-muted/80"
+                            }`}
+                          >
                             {v.name}
-                          </Badge>
+                          </button>
                         ))}
                       </div>
                     </div>
