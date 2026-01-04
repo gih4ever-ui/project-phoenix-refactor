@@ -11,6 +11,13 @@ export const safeVal = (val: any): number => Number(val) || 0;
 // Safe fixed decimal formatting
 export const safeFixed = (val: any, digits: number = 2): string => safeVal(val).toFixed(digits);
 
+// Safe ceiling - always round UP to avoid zero costs (e.g., 0.001 -> 0.01)
+export const safeCeil = (val: any, digits: number = 2): number => {
+  const num = safeVal(val);
+  const multiplier = Math.pow(10, digits);
+  return Math.ceil(num * multiplier) / multiplier;
+};
+
 // Format currency in BRL
 export const formatCurrency = (val: any): string => {
   return new Intl.NumberFormat('pt-BR', {
