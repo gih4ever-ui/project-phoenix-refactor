@@ -28,6 +28,7 @@ const emptyForm = {
   laborCost: 0,
   tax: 12,
   commission: 10,
+  platformFee: 0, // Taxa do site/sistema (%)
   margin: 30,
   finalPrice: 0,
   variationTypes: [] as VariationType[],
@@ -38,7 +39,12 @@ const emptyForm = {
 
 export const ProductPricing = ({ db }: ProductPricingProps) => {
   const { data, add, update, remove } = db;
-  const { products, materials, extras } = data;
+  const { products, materials, extras, fixedCosts } = data;
+  
+  // Custo fixo por peça (rateio)
+  const fixedCostPerUnit = fixedCosts.estimatedSales > 0 
+    ? fixedCosts.total / fixedCosts.estimatedSales 
+    : 0;
   const [searchTerm, setSearchTerm] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -97,20 +103,23 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
     }, 0);
   }, [form.selectedExtras, extras]);
 
-  const totalCost = materialCost + extrasCost + form.laborCost;
+  // Total de custo inclui materiais, extras, mão de obra e custo fixo rateado
+  const totalCost = materialCost + extrasCost + form.laborCost + fixedCostPerUnit;
 
   const suggestedPrice = useMemo(() => {
-    const divisor = 1 - (form.tax / 100) - (form.commission / 100) - (form.margin / 100);
+    // Divisor considera: imposto, comissão, taxa de sistema/site e margem
+    const divisor = 1 - (form.tax / 100) - (form.commission / 100) - (form.platformFee / 100) - (form.margin / 100);
     if (divisor <= 0) return totalCost * 2;
     return totalCost / divisor;
-  }, [totalCost, form.tax, form.commission, form.margin]);
+  }, [totalCost, form.tax, form.commission, form.platformFee, form.margin]);
 
   const realMargin = useMemo(() => {
     const price = form.finalPrice || suggestedPrice;
     if (price <= 0) return 0;
-    const costs = totalCost + (price * form.tax / 100) + (price * form.commission / 100);
+    // Custos incluem imposto, comissão e taxa do sistema
+    const costs = totalCost + (price * form.tax / 100) + (price * form.commission / 100) + (price * form.platformFee / 100);
     return ((price - costs) / price) * 100;
-  }, [form.finalPrice, suggestedPrice, totalCost, form.tax, form.commission]);
+  }, [form.finalPrice, suggestedPrice, totalCost, form.tax, form.commission, form.platformFee]);
 
   // Handlers
   const handleAddMaterial = () => {
@@ -406,7 +415,7 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
     });
   };
 
-  // Calculate variation cost
+  // Calculate variation cost (inclui custo fixo rateado)
   const getVariationCost = (variation: Variation) => {
     const varMaterials = variation.materials || form.materials;
     const varExtras = variation.selectedExtras || form.selectedExtras;
@@ -425,7 +434,7 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
       return sum + getUnitCost(price, ext.yield || 1) * pe.quantity;
     }, 0);
 
-    return matCost + extCost + form.laborCost;
+    return matCost + extCost + form.laborCost + fixedCostPerUnit;
   };
 
   // Toggle variation directly on a saved product (without entering edit mode)
@@ -466,6 +475,7 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
       laborCost: product.laborCost,
       tax: product.tax,
       commission: product.commission,
+      platformFee: (product as any).platformFee || 0,
       margin: product.margin,
       finalPrice: product.finalPrice,
       variationTypes: product.variationTypes || [],
@@ -935,7 +945,18 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
           <h4 className="font-semibold text-foreground flex items-center gap-2 mb-4">
             <Calculator size={18} className="text-primary" /> Cálculo de Preço
           </h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          
+          {/* Custo Fixo Rateado - Info */}
+          {fixedCostPerUnit > 0 && (
+            <div className="mb-4 p-3 bg-accent/10 rounded-lg border border-accent/20">
+              <p className="text-xs text-muted-foreground">
+                <strong className="text-accent">Custo Fixo Rateado:</strong> R$ {safeFixed(fixedCostPerUnit)} por peça 
+                <span className="ml-2 text-muted-foreground/70">(Total: R$ {safeFixed(fixedCosts.total)} ÷ {fixedCosts.estimatedSales} peças/mês)</span>
+              </p>
+            </div>
+          )}
+          
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
             <Input
               label="Mão de Obra (R$)"
               type="number"
@@ -961,6 +982,14 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
               max={100}
             />
             <Input
+              label="Taxa Sistema (%)"
+              type="number"
+              value={form.platformFee}
+              onChange={(e) => setForm({ ...form, platformFee: Number(e.target.value) })}
+              min={0}
+              max={100}
+            />
+            <Input
               label="Margem Desejada (%)"
               type="number"
               value={form.margin}
@@ -970,7 +999,11 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
             />
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-card rounded-lg border border-border">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-card rounded-lg border border-border">
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground uppercase font-semibold">Mat + Extras</p>
+              <p className="text-sm font-bold text-foreground">R$ {safeFixed(materialCost + extrasCost)}</p>
+            </div>
             <div className="text-center">
               <p className="text-xs text-muted-foreground uppercase font-semibold">Custo Total</p>
               <p className="text-lg font-bold text-foreground">R$ {safeFixed(totalCost)}</p>

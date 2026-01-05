@@ -70,6 +70,7 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
       laborCost: 15.00,
       tax: 4,
       commission: 0,
+      platformFee: 0,
       margin: 100,
       finalPrice: 69.90,
       totalCost: 24.55,

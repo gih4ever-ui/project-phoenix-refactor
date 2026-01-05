@@ -94,6 +94,7 @@ export interface Product {
   laborCost: number;
   tax: number;
   commission: number;
+  platformFee: number; // Taxa do sistema/site (%)
   margin: number;
   finalPrice: number;
   totalCost: number;
