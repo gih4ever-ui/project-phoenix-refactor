@@ -456,6 +456,9 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
       totalCost,
       suggestedPrice,
       realMargin,
+      materialCost, // Salva custo dos materiais
+      extrasCost, // Salva custo dos extras
+      fixedCostPerUnit, // Salva custo fixo rateado
       finalPrice: form.finalPrice || suggestedPrice,
     };
 
@@ -999,40 +1002,71 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
             />
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-card rounded-lg border border-border">
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground uppercase font-semibold">Mat + Extras</p>
-              <p className="text-sm font-bold text-foreground">R$ {safeFixed(materialCost + extrasCost)}</p>
+          {/* Cost Breakdown */}
+          <div className="p-4 bg-card rounded-lg border border-border">
+            <p className="text-xs text-muted-foreground uppercase font-semibold mb-3">Decomposição de Custos</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="bg-muted p-3 rounded-lg text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Package size={14} className="text-primary" />
+                  <p className="text-xs text-muted-foreground uppercase">Materiais</p>
+                </div>
+                <p className="text-sm font-bold text-foreground">R$ {safeFixed(materialCost)}</p>
+              </div>
+              <div className="bg-muted p-3 rounded-lg text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Gift size={14} className="text-primary" />
+                  <p className="text-xs text-muted-foreground uppercase">Extras</p>
+                </div>
+                <p className="text-sm font-bold text-foreground">R$ {safeFixed(extrasCost)}</p>
+              </div>
+              <div className="bg-muted p-3 rounded-lg text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Calculator size={14} className="text-primary" />
+                  <p className="text-xs text-muted-foreground uppercase">Mão de Obra</p>
+                </div>
+                <p className="text-sm font-bold text-foreground">R$ {safeFixed(form.laborCost)}</p>
+              </div>
+              <div className="bg-muted p-3 rounded-lg text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Layers size={14} className="text-primary" />
+                  <p className="text-xs text-muted-foreground uppercase">Custo Fixo</p>
+                </div>
+                <p className="text-sm font-bold text-foreground">R$ {safeFixed(fixedCostPerUnit)}</p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground uppercase font-semibold">Custo Total</p>
-              <p className="text-lg font-bold text-foreground">R$ {safeFixed(totalCost)}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground uppercase font-semibold">Preço Sugerido</p>
-              <p className="text-lg font-bold text-success">R$ {safeFixed(suggestedPrice)}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground uppercase font-semibold">Preço Final</p>
-              <input
-                type="number"
-                className="w-full text-lg font-bold text-center border border-input rounded p-1 bg-card text-primary"
-                value={form.finalPrice || ""}
-                onChange={(e) => setForm({ ...form, finalPrice: Number(e.target.value) })}
-                placeholder={safeFixed(suggestedPrice)}
-                min={0}
-                step={0.01}
-              />
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground uppercase font-semibold">Margem Real</p>
-              <p
-                className={`text-lg font-bold ${
-                  realMargin >= form.margin ? "text-success" : "text-destructive"
-                }`}
-              >
-                {safeFixed(realMargin)}%
-              </p>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-border">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Custo Total</p>
+                <p className="text-lg font-bold text-foreground">R$ {safeFixed(totalCost)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Preço Sugerido</p>
+                <p className="text-lg font-bold text-success">R$ {safeFixed(suggestedPrice)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Preço Final</p>
+                <input
+                  type="number"
+                  className="w-full text-lg font-bold text-center border border-input rounded p-1 bg-card text-primary"
+                  value={form.finalPrice || ""}
+                  onChange={(e) => setForm({ ...form, finalPrice: Number(e.target.value) })}
+                  placeholder={safeFixed(suggestedPrice)}
+                  min={0}
+                  step={0.01}
+                />
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Margem Real</p>
+                <p
+                  className={`text-lg font-bold ${
+                    realMargin >= form.margin ? "text-success" : "text-destructive"
+                  }`}
+                >
+                  {safeFixed(realMargin)}%
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -1135,18 +1169,35 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
                       )}
                     </div>
                     <div className="bg-card p-3 rounded border border-border">
-                      <p className="text-xs text-muted-foreground uppercase font-semibold mb-2">Custos</p>
+                      <p className="text-xs text-muted-foreground uppercase font-semibold mb-2">Decomposição de Custos</p>
                       <div className="space-y-1 text-sm">
+                        <p>
+                          <span className="text-muted-foreground">Materiais:</span>{" "}
+                          <strong>R$ {safeFixed(p.materialCost || 0)}</strong>
+                        </p>
+                        <p>
+                          <span className="text-muted-foreground">Extras:</span>{" "}
+                          <strong>R$ {safeFixed(p.extrasCost || 0)}</strong>
+                        </p>
                         <p>
                           <span className="text-muted-foreground">Mão de Obra:</span>{" "}
                           <strong>R$ {safeFixed(p.laborCost)}</strong>
                         </p>
+                        <p>
+                          <span className="text-muted-foreground">Custo Fixo:</span>{" "}
+                          <strong>R$ {safeFixed(p.fixedCostPerUnit || 0)}</strong>
+                        </p>
+                        <hr className="border-border my-1" />
                         <p>
                           <span className="text-muted-foreground">Imposto:</span> <strong>{p.tax}%</strong>
                         </p>
                         <p>
                           <span className="text-muted-foreground">Comissão:</span>{" "}
                           <strong>{p.commission}%</strong>
+                        </p>
+                        <p>
+                          <span className="text-muted-foreground">Taxa Sistema:</span>{" "}
+                          <strong>{p.platformFee || 0}%</strong>
                         </p>
                       </div>
                     </div>

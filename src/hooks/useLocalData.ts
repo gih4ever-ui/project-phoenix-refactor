@@ -76,6 +76,9 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
       totalCost: 24.55,
       suggestedPrice: 65.00,
       realMargin: 60.5,
+      materialCost: 8.55,
+      extrasCost: 1.00,
+      fixedCostPerUnit: 5.00,
       variationTypes: [
         { id: 1, name: 'Cor', options: ['Preta', 'Azul'] },
         { id: 2, name: 'Tamanho', options: ['P', 'M', 'G'] }
