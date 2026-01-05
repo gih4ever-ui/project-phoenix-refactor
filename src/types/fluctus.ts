@@ -100,6 +100,9 @@ export interface Product {
   totalCost: number;
   suggestedPrice: number;
   realMargin: number;
+  materialCost: number; // Custo calculado dos materiais
+  extrasCost: number; // Custo calculado dos extras
+  fixedCostPerUnit: number; // Custo fixo rateado por unidade
   variationTypes: VariationType[];
   variations: Variation[];
   materials: ProductMaterial[];
