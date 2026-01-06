@@ -1135,14 +1135,14 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
                         Materiais ({p.materials?.length || 0})
                       </p>
                       {p.materials && p.materials.length > 0 ? (
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           {p.materials.map((pm) => {
                             const mat = materials.find((m) => m.id == pm.materialId);
                             const price = mat ? getMaterialPrice(mat) : 0;
                             const unitCost = mat ? getUnitCost(price, mat.yield || 1) : 0;
                             return (
-                              <div key={pm.id} className="text-sm flex justify-between items-center">
-                                <span className="text-foreground">{mat?.name || "?"}</span>
+                              <div key={pm.id} className="text-sm bg-muted/50 p-2 rounded flex justify-between items-center">
+                                <span className="font-medium text-foreground">{mat?.name || "?"}</span>
                                 <span className="text-muted-foreground">{pm.quantity} × R$ {safeFixed(unitCost)}</span>
                               </div>
                             );
@@ -1157,14 +1157,14 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
                         Extras ({p.selectedExtras?.length || 0})
                       </p>
                       {p.selectedExtras && p.selectedExtras.length > 0 ? (
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           {p.selectedExtras.map((pe) => {
                             const ext = extras.find((e) => e.id == pe.extraId);
                             const price = ext ? getExtraPrice(ext) : 0;
                             const unitCost = ext ? getUnitCost(price, ext.yield || 1) : 0;
                             return (
-                              <div key={pe.id} className="text-sm flex justify-between items-center">
-                                <span className="text-foreground">{ext?.name || "?"}</span>
+                              <div key={pe.id} className="text-sm bg-muted/50 p-2 rounded flex justify-between items-center">
+                                <span className="font-medium text-foreground">{ext?.name || "?"}</span>
                                 <span className="text-muted-foreground">{pe.quantity} × R$ {safeFixed(unitCost)}</span>
                               </div>
                             );
