@@ -233,6 +233,7 @@ export interface FluctusData {
 export type ViewType = 
   | 'dashboard' 
   | 'catalog' 
+  | 'shopping'
   | 'journey' 
   | 'suppliers' 
   | 'materials' 
