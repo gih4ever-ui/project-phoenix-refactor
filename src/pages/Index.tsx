@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  LayoutDashboard, Package, Truck, Store, Users, Wallet, Tag, Box, Grid, Gift, LogOut, ArrowDown, ArrowUp, ListFilter
+  LayoutDashboard, Package, Truck, Store, Users, Wallet, Tag, Box, Grid, Gift, LogOut, ArrowDown, ArrowUp, ListFilter, ShoppingCart
 } from "lucide-react";
 import { useLocalData } from "@/hooks/useLocalData";
 import { ViewType } from "@/types/fluctus";
@@ -8,10 +8,12 @@ import {
   LoginScreen, Dashboard, SupplierManager, MaterialManager, ExtrasManager,
   FixedCosts, ClientManager, Catalog, ProductPricing
 } from "@/components/fluctus/screens";
+import ShoppingManager from "@/components/fluctus/screens/ShoppingManager";
 
 const menuItems = [
   { id: "dashboard" as ViewType, label: "Visão Geral", icon: LayoutDashboard },
   { id: "catalog" as ViewType, label: "Catálogo", icon: Grid },
+  { id: "shopping" as ViewType, label: "Compras", icon: ShoppingCart },
   { id: "suppliers" as ViewType, label: "Fornecedores", icon: Store },
   { id: "materials" as ViewType, label: "Insumos", icon: Package },
   { id: "extras" as ViewType, label: "Embalagens", icon: Gift },
@@ -37,6 +39,8 @@ const Index = () => {
         return <Dashboard data={db.data} seed={db.seed} backup={db.backup} restore={db.restore} />;
       case "catalog":
         return <Catalog db={db} />;
+      case "shopping":
+        return <ShoppingManager db={db} />;
       case "suppliers":
         return <SupplierManager db={db} />;
       case "materials":
