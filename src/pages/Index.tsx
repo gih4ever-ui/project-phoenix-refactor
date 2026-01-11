@@ -6,9 +6,8 @@ import { useLocalData } from "@/hooks/useLocalData";
 import { ViewType } from "@/types/fluctus";
 import {
   LoginScreen, Dashboard, SupplierManager, MaterialManager, ExtrasManager,
-  FixedCosts, ClientManager, Catalog, ProductPricing
+  FixedCosts, ClientManager, Catalog, ProductPricing, ShoppingManager
 } from "@/components/fluctus/screens";
-import ShoppingManager from "@/components/fluctus/screens/ShoppingManager";
 
 const menuItems = [
   { id: "dashboard" as ViewType, label: "Visão Geral", icon: LayoutDashboard },
