@@ -33,25 +33,42 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     value: 0
   });
 
-  // Invoice form
-  const [newInvoice, setNewInvoice] = useState<{
-    supplierId: number | string;
-    discount: number;
-    discountType: 'value' | 'percent';
-  }>({
-    supplierId: '',
-    discount: 0,
-    discountType: 'percent'
-  });
-
+  // Invoice creation flow
+  const [creatingInvoice, setCreatingInvoice] = useState<number | null>(null); // tripId when creating
+  const [editingInvoice, setEditingInvoice] = useState<number | null>(null); // invoiceId when editing
+  const [newInvoiceSupplierId, setNewInvoiceSupplierId] = useState<number | string>('');
+  
   // Invoice item form
-  const [editingInvoice, setEditingInvoice] = useState<number | null>(null);
   const [newInvoiceItem, setNewInvoiceItem] = useState<Partial<InvoiceItem>>({
     type: 'material',
     id: 0,
     qty: 1,
     price: 0
   });
+
+  // Invoice discount (applied at the end)
+  const [invoiceDiscount, setInvoiceDiscount] = useState<{ discount: number; discountType: 'value' | 'percent' }>({
+    discount: 0,
+    discountType: 'percent'
+  });
+
+  // Get quoted price for material/extra (from selected quote)
+  const getQuotedPrice = (type: 'material' | 'extra', id: number) => {
+    if (type === 'material') {
+      const mat = materials.find(m => m.id === id);
+      if (mat && mat.selectedQuoteId) {
+        const quote = mat.quotes.find(q => q.id === mat.selectedQuoteId);
+        return quote?.price || mat.price || 0;
+      }
+      return mat?.price || 0;
+    }
+    const ext = extras.find(e => e.id === id);
+    if (ext && ext.selectedQuoteId) {
+      const quote = ext.quotes.find(q => q.id === ext.selectedQuoteId);
+      return quote?.price || ext.price || 0;
+    }
+    return ext?.price || 0;
+  };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
@@ -140,17 +157,17 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     });
   };
 
-  // Add invoice to trip
-  const handleAddInvoice = (tripId: number) => {
+  // Start creating invoice - just select supplier
+  const handleStartInvoice = (tripId: number, supplierId: number | string) => {
     const trip = shoppingTrips.find(t => t.id === tripId);
-    if (!trip || !newInvoice.supplierId) return;
+    if (!trip || !supplierId) return;
 
     const invoice: Invoice = {
       id: Date.now(),
-      supplierId: newInvoice.supplierId,
-      discount: Number(newInvoice.discount) || 0,
+      supplierId: supplierId,
+      discount: 0,
       discountValue: 0,
-      discountType: newInvoice.discountType,
+      discountType: 'percent',
       items: []
     };
 
@@ -158,7 +175,35 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     
     update('shoppingTrips', tripId, { invoices: updatedInvoices });
     setEditingInvoice(invoice.id);
-    setNewInvoice({ supplierId: '', discount: 0, discountType: 'percent' });
+    setCreatingInvoice(null);
+    setNewInvoiceSupplierId('');
+    setInvoiceDiscount({ discount: 0, discountType: 'percent' });
+  };
+
+  // Finalize invoice (apply discount and close editing)
+  const handleFinalizeInvoice = (tripId: number, invoiceId: number) => {
+    const trip = shoppingTrips.find(t => t.id === tripId);
+    if (!trip) return;
+
+    const invoiceIndex = trip.invoices.findIndex(i => i.id === invoiceId);
+    if (invoiceIndex === -1) return;
+
+    const updatedInvoices = [...trip.invoices];
+    updatedInvoices[invoiceIndex] = {
+      ...updatedInvoices[invoiceIndex],
+      discount: invoiceDiscount.discount,
+      discountType: invoiceDiscount.discountType
+    };
+
+    const totals = calculateTotals({ ...trip, invoices: updatedInvoices });
+    
+    update('shoppingTrips', tripId, { 
+      invoices: updatedInvoices,
+      ...totals
+    });
+
+    setEditingInvoice(null);
+    setInvoiceDiscount({ discount: 0, discountType: 'percent' });
   };
 
   // Remove invoice
@@ -474,20 +519,30 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <span className="font-bold">R$ {safeFixed(invoiceTotal)}</span>
-                                    <Button
-                                      variant="ghost"
-                                      className="p-2 h-auto"
-                                      onClick={() => setEditingInvoice(isEditing ? null : inv.id)}
-                                    >
-                                      {isEditing ? <X className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      className="p-2 h-auto"
-                                      onClick={() => handleRemoveInvoice(trip.id, inv.id)}
-                                    >
-                                      <Trash2 className="w-4 h-4 text-destructive" />
-                                    </Button>
+                                    {!isEditing && (
+                                      <Button
+                                        variant="ghost"
+                                        className="p-2 h-auto"
+                                        onClick={() => {
+                                          setEditingInvoice(inv.id);
+                                          setInvoiceDiscount({ discount: inv.discount, discountType: inv.discountType });
+                                        }}
+                                      >
+                                        <Edit2 className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                    {!isEditing && (
+                                      <Button
+                                        variant="ghost"
+                                        className="p-2 h-auto"
+                                        onClick={() => handleRemoveInvoice(trip.id, inv.id)}
+                                      >
+                                        <Trash2 className="w-4 h-4 text-destructive" />
+                                      </Button>
+                                    )}
+                                    {isEditing && (
+                                      <Badge color="blue">Editando</Badge>
+                                    )}
                                   </div>
                                 </div>
 
@@ -524,56 +579,98 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
 
                                     {/* Add Item Form */}
                                     {isEditing && (
-                                      <div className="flex gap-2 items-end pt-2 border-t">
-                                        <div className="w-28">
-                                          <label className="text-xs text-muted-foreground">Tipo</label>
-                                          <select
-                                            className="w-full h-10 px-3 rounded-md border bg-background text-sm"
-                                            value={newInvoiceItem.type}
-                                            onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, type: e.target.value as 'material' | 'extra', id: 0 })}
+                                      <div className="space-y-3 pt-2 border-t">
+                                        <div className="flex gap-2 items-end">
+                                          <div className="w-28">
+                                            <label className="text-xs text-muted-foreground">Tipo</label>
+                                            <select
+                                              className="w-full h-10 px-3 rounded-md border bg-background text-sm"
+                                              value={newInvoiceItem.type}
+                                              onChange={(e) => {
+                                                const type = e.target.value as 'material' | 'extra';
+                                                setNewInvoiceItem({ ...newInvoiceItem, type, id: 0, price: 0 });
+                                              }}
+                                            >
+                                              <option value="material">Material</option>
+                                              <option value="extra">Extra</option>
+                                            </select>
+                                          </div>
+                                          <div className="flex-1">
+                                            <label className="text-xs text-muted-foreground">Item</label>
+                                            <select
+                                              className="w-full h-10 px-3 rounded-md border bg-background text-sm"
+                                              value={newInvoiceItem.id}
+                                              onChange={(e) => {
+                                                const id = Number(e.target.value);
+                                                const quotedPrice = getQuotedPrice(newInvoiceItem.type as 'material' | 'extra', id);
+                                                setNewInvoiceItem({ ...newInvoiceItem, id, price: quotedPrice });
+                                              }}
+                                            >
+                                              <option value={0}>Selecione...</option>
+                                              {(newInvoiceItem.type === 'material' ? materials : extras).map((item) => (
+                                                <option key={item.id} value={item.id}>{item.name}</option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                          <div className="w-20">
+                                            <label className="text-xs text-muted-foreground">Qtd</label>
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              value={newInvoiceItem.qty || ''}
+                                              onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, qty: Number(e.target.value) })}
+                                            />
+                                          </div>
+                                          <div className="w-24">
+                                            <label className="text-xs text-muted-foreground">Preço</label>
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              value={newInvoiceItem.price || ''}
+                                              onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, price: Number(e.target.value) })}
+                                            />
+                                          </div>
+                                          <Button 
+                                            className="px-3"
+                                            onClick={() => handleAddInvoiceItem(trip.id, inv.id)}
+                                            disabled={!newInvoiceItem.id}
                                           >
-                                            <option value="material">Material</option>
-                                            <option value="extra">Extra</option>
-                                          </select>
+                                            <Plus className="w-4 h-4" />
+                                          </Button>
                                         </div>
-                                        <div className="flex-1">
-                                          <label className="text-xs text-muted-foreground">Item</label>
-                                          <select
-                                            className="w-full h-10 px-3 rounded-md border bg-background text-sm"
-                                            value={newInvoiceItem.id}
-                                            onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, id: Number(e.target.value) })}
+                                        
+                                        {/* Discount Section - at the end */}
+                                        <div className="flex gap-2 items-end pt-3 border-t bg-muted/30 -mx-3 -mb-3 p-3 rounded-b-lg">
+                                          <div className="flex-1">
+                                            <p className="text-sm font-medium mb-2">Desconto na nota</p>
+                                            <div className="flex gap-2">
+                                              <div className="w-28">
+                                                <Input
+                                                  type="number"
+                                                  step="0.01"
+                                                  placeholder="0"
+                                                  value={invoiceDiscount.discount || ''}
+                                                  onChange={(e) => setInvoiceDiscount({ ...invoiceDiscount, discount: Number(e.target.value) })}
+                                                />
+                                              </div>
+                                              <select
+                                                className="h-10 px-3 rounded-md border bg-background"
+                                                value={invoiceDiscount.discountType}
+                                                onChange={(e) => setInvoiceDiscount({ ...invoiceDiscount, discountType: e.target.value as 'value' | 'percent' })}
+                                              >
+                                                <option value="percent">%</option>
+                                                <option value="value">R$</option>
+                                              </select>
+                                            </div>
+                                          </div>
+                                          <Button 
+                                            onClick={() => handleFinalizeInvoice(trip.id, inv.id)}
+                                            className="bg-green-600 hover:bg-green-700"
                                           >
-                                            <option value={0}>Selecione...</option>
-                                            {(newInvoiceItem.type === 'material' ? materials : extras).map((item) => (
-                                              <option key={item.id} value={item.id}>{item.name}</option>
-                                            ))}
-                                          </select>
+                                            <Check className="w-4 h-4 mr-1" />
+                                            Finalizar Nota
+                                          </Button>
                                         </div>
-                                        <div className="w-20">
-                                          <label className="text-xs text-muted-foreground">Qtd</label>
-                                          <Input
-                                            type="number"
-                                            step="0.01"
-                                            value={newInvoiceItem.qty || ''}
-                                            onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, qty: Number(e.target.value) })}
-                                          />
-                                        </div>
-                                        <div className="w-24">
-                                          <label className="text-xs text-muted-foreground">Preço</label>
-                                          <Input
-                                            type="number"
-                                            step="0.01"
-                                            value={newInvoiceItem.price || ''}
-                                            onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, price: Number(e.target.value) })}
-                                          />
-                                        </div>
-                                        <Button 
-                                          className="px-3"
-                                          onClick={() => handleAddInvoiceItem(trip.id, inv.id)}
-                                          disabled={!newInvoiceItem.id}
-                                        >
-                                          <Plus className="w-4 h-4" />
-                                        </Button>
                                       </div>
                                     )}
                                   </div>
@@ -584,47 +681,54 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                         </div>
                       )}
 
-                      {/* Add Invoice Form */}
-                      <div className="flex gap-2 items-end">
-                        <div className="flex-1">
-                          <label className="text-xs text-muted-foreground">Fornecedor</label>
-                          <select
-                            className="w-full h-10 px-3 rounded-md border bg-background"
-                            value={newInvoice.supplierId}
-                            onChange={(e) => setNewInvoice({ ...newInvoice, supplierId: e.target.value })}
-                          >
-                            <option value="">Selecione...</option>
-                            {suppliers.map((s) => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                          </select>
+                      {/* Add Invoice Button - only show if no invoice is being edited */}
+                      {editingInvoice === null && (
+                        <div className="border-2 border-dashed rounded-lg p-4">
+                          {creatingInvoice === trip.id ? (
+                            <div className="flex gap-2 items-end">
+                              <div className="flex-1">
+                                <label className="text-xs text-muted-foreground">Selecione o Fornecedor</label>
+                                <select
+                                  className="w-full h-10 px-3 rounded-md border bg-background"
+                                  value={newInvoiceSupplierId}
+                                  onChange={(e) => setNewInvoiceSupplierId(e.target.value)}
+                                  autoFocus
+                                >
+                                  <option value="">Selecione...</option>
+                                  {suppliers.map((s) => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <Button 
+                                onClick={() => handleStartInvoice(trip.id, newInvoiceSupplierId)} 
+                                disabled={!newInvoiceSupplierId}
+                              >
+                                <Check className="w-4 h-4 mr-1" />
+                                Confirmar
+                              </Button>
+                              <Button 
+                                variant="outline"
+                                onClick={() => {
+                                  setCreatingInvoice(null);
+                                  setNewInvoiceSupplierId('');
+                                }}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button 
+                              variant="outline" 
+                              className="w-full"
+                              onClick={() => setCreatingInvoice(trip.id)}
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Adicionar Nota Fiscal
+                            </Button>
+                          )}
                         </div>
-                        <div className="w-24">
-                          <label className="text-xs text-muted-foreground">Desconto</label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0"
-                            value={newInvoice.discount || ''}
-                            onChange={(e) => setNewInvoice({ ...newInvoice, discount: Number(e.target.value) })}
-                          />
-                        </div>
-                        <div className="w-24">
-                          <label className="text-xs text-muted-foreground">Tipo</label>
-                          <select
-                            className="w-full h-10 px-3 rounded-md border bg-background"
-                            value={newInvoice.discountType}
-                            onChange={(e) => setNewInvoice({ ...newInvoice, discountType: e.target.value as 'value' | 'percent' })}
-                          >
-                            <option value="percent">%</option>
-                            <option value="value">R$</option>
-                          </select>
-                        </div>
-                        <Button onClick={() => handleAddInvoice(trip.id)} disabled={!newInvoice.supplierId}>
-                          <Plus className="w-4 h-4 mr-1" />
-                          Nota
-                        </Button>
-                      </div>
+                      )}
                     </div>
 
                     {/* Trip Actions */}
