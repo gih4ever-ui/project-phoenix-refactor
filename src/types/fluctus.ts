@@ -180,9 +180,11 @@ export interface LogisticsItem {
 
 export interface InvoiceItem {
   id: number;
-  type: 'material' | 'extra';
+  type: 'material' | 'extra' | 'other';
   qty: number;
   price: number;
+  description?: string; // For 'other' type items
+  includeInTotal?: boolean; // Whether to include in cost calculations (default true)
 }
 
 export interface Invoice {
