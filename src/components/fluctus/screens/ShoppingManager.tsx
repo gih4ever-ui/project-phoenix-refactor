@@ -618,14 +618,14 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                               value={newInvoiceItem.type}
                                               onChange={(e) => {
                                                 const type = e.target.value as 'material' | 'extra' | 'other';
-                                                setNewInvoiceItem({ 
-                                                  ...newInvoiceItem, 
-                                                  type, 
-                                                  id: 0, 
+                                                setNewInvoiceItem((prev) => ({
+                                                  ...prev,
+                                                  type,
+                                                  id: 0,
                                                   price: 0,
                                                   description: '',
-                                                  includeInTotal: true
-                                                });
+                                                  includeInTotal: true,
+                                                }));
                                               }}
                                             >
                                               <option value="material">Material</option>
@@ -652,11 +652,11 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                                 onChange={(e) => {
                                                   const id = Number(e.target.value);
                                                   const quotedPrice = getQuotedPriceBySupplier(
-                                                    newInvoiceItem.type as 'material' | 'extra', 
+                                                    newInvoiceItem.type as 'material' | 'extra',
                                                     id,
                                                     inv.supplierId
                                                   );
-                                                  setNewInvoiceItem({ ...newInvoiceItem, id, price: quotedPrice });
+                                                  setNewInvoiceItem((prev) => ({ ...prev, id, price: quotedPrice }));
                                                 }}
                                               >
                                                 <option value={0}>Selecione...</option>
@@ -673,7 +673,9 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                               type="number"
                                               step="0.01"
                                               value={newInvoiceItem.qty || ''}
-                                              onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, qty: Number(e.target.value) })}
+                                              onChange={(e) =>
+                                                setNewInvoiceItem((prev) => ({ ...prev, qty: Number(e.target.value) }))
+                                              }
                                             />
                                           </div>
                                           <div className="w-24">
@@ -682,7 +684,9 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                               type="number"
                                               step="0.01"
                                               value={newInvoiceItem.price || ''}
-                                              onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, price: Number(e.target.value) })}
+                                              onChange={(e) =>
+                                                setNewInvoiceItem((prev) => ({ ...prev, price: Number(e.target.value) }))
+                                              }
                                             />
                                           </div>
                                           
