@@ -43,7 +43,9 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     type: 'material',
     id: 0,
     qty: 1,
-    price: 0
+    price: 0,
+    description: '',
+    includeInTotal: true
   });
 
   // Invoice discount (applied at the end)
@@ -52,22 +54,36 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     discountType: 'percent'
   });
 
-  // Get quoted price for material/extra (from selected quote)
-  const getQuotedPrice = (type: 'material' | 'extra', id: number) => {
+  // Get quoted price for material/extra from a specific supplier
+  const getQuotedPriceBySupplier = (type: 'material' | 'extra', itemId: number, supplierId: number | string) => {
     if (type === 'material') {
-      const mat = materials.find(m => m.id === id);
-      if (mat && mat.selectedQuoteId) {
-        const quote = mat.quotes.find(q => q.id === mat.selectedQuoteId);
-        return quote?.price || mat.price || 0;
+      const mat = materials.find(m => m.id === itemId);
+      if (mat) {
+        // Find quote from this specific supplier
+        const quote = mat.quotes.find(q => q.supplierId == supplierId);
+        if (quote) return quote.price;
+        // Fallback to selected quote or default price
+        if (mat.selectedQuoteId) {
+          const selectedQuote = mat.quotes.find(q => q.id === mat.selectedQuoteId);
+          return selectedQuote?.price || mat.price || 0;
+        }
+        return mat.price || 0;
       }
-      return mat?.price || 0;
+      return 0;
     }
-    const ext = extras.find(e => e.id === id);
-    if (ext && ext.selectedQuoteId) {
-      const quote = ext.quotes.find(q => q.id === ext.selectedQuoteId);
-      return quote?.price || ext.price || 0;
+    const ext = extras.find(e => e.id === itemId);
+    if (ext) {
+      // Find quote from this specific supplier
+      const quote = ext.quotes.find(q => q.supplierId == supplierId);
+      if (quote) return quote.price;
+      // Fallback to selected quote or default price
+      if (ext.selectedQuoteId) {
+        const selectedQuote = ext.quotes.find(q => q.id === ext.selectedQuoteId);
+        return selectedQuote?.price || ext.price || 0;
+      }
+      return ext.price || 0;
     }
-    return ext?.price || 0;
+    return 0;
   };
 
   const formatDate = (dateStr: string) => {
@@ -81,7 +97,10 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
   const calculateTotals = (trip: ShoppingTrip) => {
     const totalLogistics = trip.logistics.reduce((sum, l) => sum + (l.value || 0), 0);
     const totalGoods = trip.invoices.reduce((sum, inv) => {
-      const itemsTotal = inv.items.reduce((s, item) => s + (item.qty * item.price), 0);
+      // Only include items where includeInTotal is not false
+      const itemsTotal = inv.items
+        .filter(item => item.includeInTotal !== false)
+        .reduce((s, item) => s + (item.qty * item.price), 0);
       const discount = inv.discountType === 'percent' 
         ? itemsTotal * (inv.discount / 100)
         : inv.discount;
@@ -230,9 +249,11 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
 
     const item: InvoiceItem = {
       id: Number(newInvoiceItem.id) || 0,
-      type: newInvoiceItem.type as 'material' | 'extra',
+      type: newInvoiceItem.type as 'material' | 'extra' | 'other',
       qty: Number(newInvoiceItem.qty) || 1,
-      price: Number(newInvoiceItem.price) || 0
+      price: Number(newInvoiceItem.price) || 0,
+      description: newInvoiceItem.type === 'other' ? newInvoiceItem.description : undefined,
+      includeInTotal: newInvoiceItem.includeInTotal !== false
     };
 
     const updatedInvoices = [...trip.invoices];
@@ -248,7 +269,7 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
       ...totals
     });
 
-    setNewInvoiceItem({ type: 'material', id: 0, qty: 1, price: 0 });
+    setNewInvoiceItem({ type: 'material', id: 0, qty: 1, price: 0, description: '', includeInTotal: true });
   };
 
   // Remove item from invoice
@@ -293,7 +314,10 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     return supplier?.name || "Fornecedor desconhecido";
   };
 
-  const getItemName = (type: 'material' | 'extra', id: number) => {
+  const getItemName = (type: 'material' | 'extra' | 'other', id: number, description?: string) => {
+    if (type === 'other') {
+      return description || "Item avulso";
+    }
     if (type === 'material') {
       return materials.find(m => m.id === id)?.name || "Material desconhecido";
     }
@@ -550,12 +574,18 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                 {(inv.items.length > 0 || isEditing) && (
                                   <div className="p-3 space-y-2">
                                     {inv.items.map((item, idx) => (
-                                      <div key={idx} className="flex items-center justify-between text-sm bg-background p-2 rounded">
+                                      <div key={idx} className={`flex items-center justify-between text-sm bg-background p-2 rounded ${item.includeInTotal === false ? 'opacity-60' : ''}`}>
                                         <div className="flex items-center gap-2">
-                                          <Badge color={item.type === 'material' ? 'blue' : 'purple'} className="text-xs">
-                                            {item.type === 'material' ? 'MAT' : 'EXT'}
+                                          <Badge 
+                                            color={item.type === 'material' ? 'blue' : item.type === 'extra' ? 'purple' : 'gray'} 
+                                            className="text-xs"
+                                          >
+                                            {item.type === 'material' ? 'MAT' : item.type === 'extra' ? 'EXT' : 'OUT'}
                                           </Badge>
-                                          <span>{getItemName(item.type, item.id)}</span>
+                                          <span>{getItemName(item.type, item.id, item.description)}</span>
+                                          {item.includeInTotal === false && (
+                                            <span className="text-xs text-muted-foreground">(não contabiliza)</span>
+                                          )}
                                         </div>
                                         <div className="flex items-center gap-3">
                                           <span className="text-muted-foreground">
@@ -580,38 +610,63 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                     {/* Add Item Form */}
                                     {isEditing && (
                                       <div className="space-y-3 pt-2 border-t">
-                                        <div className="flex gap-2 items-end">
+                                        <div className="flex gap-2 items-end flex-wrap">
                                           <div className="w-28">
                                             <label className="text-xs text-muted-foreground">Tipo</label>
                                             <select
                                               className="w-full h-10 px-3 rounded-md border bg-background text-sm"
                                               value={newInvoiceItem.type}
                                               onChange={(e) => {
-                                                const type = e.target.value as 'material' | 'extra';
-                                                setNewInvoiceItem({ ...newInvoiceItem, type, id: 0, price: 0 });
+                                                const type = e.target.value as 'material' | 'extra' | 'other';
+                                                setNewInvoiceItem({ 
+                                                  ...newInvoiceItem, 
+                                                  type, 
+                                                  id: 0, 
+                                                  price: 0,
+                                                  description: '',
+                                                  includeInTotal: true
+                                                });
                                               }}
                                             >
                                               <option value="material">Material</option>
                                               <option value="extra">Extra</option>
+                                              <option value="other">Outro</option>
                                             </select>
                                           </div>
-                                          <div className="flex-1">
-                                            <label className="text-xs text-muted-foreground">Item</label>
-                                            <select
-                                              className="w-full h-10 px-3 rounded-md border bg-background text-sm"
-                                              value={newInvoiceItem.id}
-                                              onChange={(e) => {
-                                                const id = Number(e.target.value);
-                                                const quotedPrice = getQuotedPrice(newInvoiceItem.type as 'material' | 'extra', id);
-                                                setNewInvoiceItem({ ...newInvoiceItem, id, price: quotedPrice });
-                                              }}
-                                            >
-                                              <option value={0}>Selecione...</option>
-                                              {(newInvoiceItem.type === 'material' ? materials : extras).map((item) => (
-                                                <option key={item.id} value={item.id}>{item.name}</option>
-                                              ))}
-                                            </select>
-                                          </div>
+                                          
+                                          {newInvoiceItem.type === 'other' ? (
+                                            <div className="flex-1">
+                                              <label className="text-xs text-muted-foreground">Descrição</label>
+                                              <Input
+                                                placeholder="Descrição do item..."
+                                                value={newInvoiceItem.description || ''}
+                                                onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, description: e.target.value })}
+                                              />
+                                            </div>
+                                          ) : (
+                                            <div className="flex-1">
+                                              <label className="text-xs text-muted-foreground">Item</label>
+                                              <select
+                                                className="w-full h-10 px-3 rounded-md border bg-background text-sm"
+                                                value={newInvoiceItem.id}
+                                                onChange={(e) => {
+                                                  const id = Number(e.target.value);
+                                                  const quotedPrice = getQuotedPriceBySupplier(
+                                                    newInvoiceItem.type as 'material' | 'extra', 
+                                                    id,
+                                                    inv.supplierId
+                                                  );
+                                                  setNewInvoiceItem({ ...newInvoiceItem, id, price: quotedPrice });
+                                                }}
+                                              >
+                                                <option value={0}>Selecione...</option>
+                                                {(newInvoiceItem.type === 'material' ? materials : extras).map((item) => (
+                                                  <option key={item.id} value={item.id}>{item.name}</option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                          )}
+                                          
                                           <div className="w-20">
                                             <label className="text-xs text-muted-foreground">Qtd</label>
                                             <Input
@@ -630,10 +685,25 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                               onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, price: Number(e.target.value) })}
                                             />
                                           </div>
+                                          
+                                          {newInvoiceItem.type === 'other' && (
+                                            <div className="flex items-center gap-2">
+                                              <label className="text-xs text-muted-foreground flex items-center gap-1">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={newInvoiceItem.includeInTotal !== false}
+                                                  onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, includeInTotal: e.target.checked })}
+                                                  className="w-4 h-4"
+                                                />
+                                                Contabilizar
+                                              </label>
+                                            </div>
+                                          )}
+                                          
                                           <Button 
                                             className="px-3"
                                             onClick={() => handleAddInvoiceItem(trip.id, inv.id)}
-                                            disabled={!newInvoiceItem.id}
+                                            disabled={newInvoiceItem.type === 'other' ? !newInvoiceItem.description : !newInvoiceItem.id}
                                           >
                                             <Plus className="w-4 h-4" />
                                           </Button>
@@ -643,7 +713,7 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                         <div className="flex gap-2 items-end pt-3 border-t bg-muted/30 -mx-3 -mb-3 p-3 rounded-b-lg">
                                           <div className="flex-1">
                                             <p className="text-sm font-medium mb-2">Desconto na nota</p>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 items-center">
                                               <div className="w-28">
                                                 <Input
                                                   type="number"
@@ -661,6 +731,15 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                                 <option value="percent">%</option>
                                                 <option value="value">R$</option>
                                               </select>
+                                              {invoiceDiscount.discount > 0 && (
+                                                <span className="text-sm font-medium text-green-600">
+                                                  = R$ {safeFixed(
+                                                    invoiceDiscount.discountType === 'percent'
+                                                      ? itemsTotal * (invoiceDiscount.discount / 100)
+                                                      : invoiceDiscount.discount
+                                                  )}
+                                                </span>
+                                              )}
                                             </div>
                                           </div>
                                           <Button 
