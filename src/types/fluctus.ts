@@ -18,6 +18,10 @@ export interface Material {
   quotes: Quote[];
   selectedQuoteId?: number; // Which quote to use for pricing calculations
   createdAt?: Date;
+  // Campos de rateio de logística
+  lastPurchasedPrice?: number; // Último preço pago (sem logística)
+  lastLogisticsCost?: number; // Custo de logística rateado por unidade
+  lastTotalCost?: number; // Preço + logística por unidade de compra
 }
 
 export interface Extra {
@@ -30,6 +34,10 @@ export interface Extra {
   quotes: Quote[];
   selectedQuoteId?: number; // Which quote to use for pricing calculations
   createdAt?: Date;
+  // Campos de rateio de logística
+  lastPurchasedPrice?: number; // Último preço pago (sem logística)
+  lastLogisticsCost?: number; // Custo de logística rateado por unidade
+  lastTotalCost?: number; // Preço + logística por unidade de compra
 }
 
 export interface Supplier {
@@ -205,6 +213,9 @@ export interface ShoppingTrip {
   totalLogistics: number;
   totalGoods: number;
   grandTotal: number;
+  // Rateio de logística
+  totalUnits?: number; // Total de unidades compradas
+  logisticsCostPerUnit?: number; // Custo logístico por unidade
 }
 
 export interface FixedCostItem {
