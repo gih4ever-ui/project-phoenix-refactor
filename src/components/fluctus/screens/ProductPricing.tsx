@@ -55,8 +55,13 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
   const [newOptionForType, setNewOptionForType] = useState<{ [key: number]: string }>({});
   const [editingVariationId, setEditingVariationId] = useState<number | null>(null);
 
-  // Helper: get the active price for a material (uses selectedQuoteId or cheapest)
+  // Helper: get the active price for a material
+  // Priority: lastTotalCost (with logistics) > selectedQuoteId > cheapest quote > price
   const getMaterialPrice = (mat: typeof materials[0]) => {
+    // If we have a purchase price with logistics, use that
+    if (mat.lastTotalCost !== undefined && mat.lastTotalCost > 0) {
+      return mat.lastTotalCost;
+    }
     if (mat.selectedQuoteId) {
       const selectedQuote = mat.quotes.find((q) => q.id === mat.selectedQuoteId);
       if (selectedQuote) return selectedQuote.price;
@@ -66,8 +71,13 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
     return sortedQuotes[0]?.price || mat.price || 0;
   };
 
-  // Helper: get the active price for an extra (uses selectedQuoteId or cheapest)
+  // Helper: get the active price for an extra
+  // Priority: lastTotalCost (with logistics) > selectedQuoteId > cheapest quote > price
   const getExtraPrice = (ext: typeof extras[0]) => {
+    // If we have a purchase price with logistics, use that
+    if (ext.lastTotalCost !== undefined && ext.lastTotalCost > 0) {
+      return ext.lastTotalCost;
+    }
     if (ext.selectedQuoteId) {
       const selectedQuote = ext.quotes.find((q) => q.id === ext.selectedQuoteId);
       if (selectedQuote) return selectedQuote.price;

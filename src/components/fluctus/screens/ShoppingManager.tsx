@@ -294,13 +294,63 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     });
   };
 
-  // Toggle trip status
+  // Toggle trip status and calculate logistics proration when completing
   const handleToggleStatus = (tripId: number) => {
     const trip = shoppingTrips.find(t => t.id === tripId);
     if (!trip) return;
-    update('shoppingTrips', tripId, { 
-      status: trip.status === 'open' ? 'completed' : 'open' 
-    });
+    
+    const newStatus = trip.status === 'open' ? 'completed' : 'open';
+    
+    if (newStatus === 'completed') {
+      // Calculate logistics proration
+      const totals = calculateTotals(trip);
+      
+      // Count total units purchased (only items that count in total)
+      let totalUnits = 0;
+      const itemPurchases: { type: 'material' | 'extra'; id: number; qty: number; price: number }[] = [];
+      
+      trip.invoices.forEach(inv => {
+        inv.items.forEach(item => {
+          if (item.type !== 'other' && item.includeInTotal !== false) {
+            totalUnits += item.qty;
+            itemPurchases.push({ type: item.type, id: item.id, qty: item.qty, price: item.price });
+          }
+        });
+      });
+      
+      // Calculate logistics cost per unit
+      const logisticsCostPerUnit = totalUnits > 0 ? totals.totalLogistics / totalUnits : 0;
+      
+      // Update each material/extra with the last purchase price + logistics cost
+      itemPurchases.forEach(({ type, id, qty, price }) => {
+        const logisticsForItem = logisticsCostPerUnit * qty;
+        const logisticsPerUnit = logisticsForItem / qty;
+        
+        if (type === 'material') {
+          update('materials', id, {
+            lastPurchasedPrice: price,
+            lastLogisticsCost: logisticsPerUnit,
+            lastTotalCost: price + logisticsPerUnit
+          });
+        } else {
+          update('extras', id, {
+            lastPurchasedPrice: price,
+            lastLogisticsCost: logisticsPerUnit,
+            lastTotalCost: price + logisticsPerUnit
+          });
+        }
+      });
+      
+      // Update trip with proration info
+      update('shoppingTrips', tripId, { 
+        status: 'completed',
+        totalUnits,
+        logisticsCostPerUnit
+      });
+    } else {
+      // Just toggle back to open
+      update('shoppingTrips', tripId, { status: 'open' });
+    }
   };
 
   // Delete trip
@@ -433,6 +483,29 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                         <p className="text-sm text-muted-foreground">Total Geral</p>
                       </div>
                     </div>
+
+                    {/* Logistics Proration Info (shown when completed) */}
+                    {trip.status === 'completed' && trip.logisticsCostPerUnit !== undefined && (
+                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-green-700 dark:text-green-400">📦 Rateio de Logística Calculado</p>
+                            <p className="text-sm text-muted-foreground">
+                              {trip.totalUnits} unidades compradas • Custo logístico distribuído
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                              +R$ {safeFixed(trip.logisticsCostPerUnit)}
+                            </p>
+                            <p className="text-sm text-muted-foreground">por unidade</p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Este valor foi adicionado ao custo de cada material/extra comprado nesta viagem.
+                        </p>
+                      </div>
+                    )}
 
                     {/* Logistics Section */}
                     <div className="space-y-3">
