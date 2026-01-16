@@ -6,7 +6,7 @@ import { useLocalData } from "@/hooks/useLocalData";
 import { ViewType } from "@/types/fluctus";
 import {
   LoginScreen, Dashboard, SupplierManager, MaterialManager, ExtrasManager,
-  FixedCosts, ClientManager, Catalog, ProductPricing, ShoppingManager
+  FixedCosts, LogisticsFund, ClientManager, Catalog, ProductPricing, ShoppingManager
 } from "@/components/fluctus/screens";
 
 const menuItems = [
@@ -20,6 +20,7 @@ const menuItems = [
   { id: "kits" as ViewType, label: "Kits", icon: Box },
   { id: "clients" as ViewType, label: "Clientes", icon: Users },
   { id: "financial" as ViewType, label: "Custos Fixos", icon: Wallet },
+  { id: "logistics" as ViewType, label: "Fundo Logística", icon: Truck },
 ];
 
 const Index = () => {
@@ -54,6 +55,8 @@ const Index = () => {
         return <ClientManager db={db} />;
       case "financial":
         return <FixedCosts db={db} />;
+      case "logistics":
+        return <LogisticsFund db={db} />;
       default:
         return <Dashboard data={db.data} seed={db.seed} backup={db.backup} restore={db.restore} />;
     }

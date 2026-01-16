@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FluctusData, FixedCosts } from '@/types/fluctus';
+import { FluctusData, FixedCosts, LogisticsFund, LogisticsFundDeposit } from '@/types/fluctus';
 
 const INITIAL_DATA: FluctusData = {
   materials: [],
@@ -11,7 +11,8 @@ const INITIAL_DATA: FluctusData = {
   expenses: [],
   fixedCosts: { total: 0, estimatedSales: 100, items: [] },
   kits: [],
-  shoppingTrips: []
+  shoppingTrips: [],
+  logisticsFund: { deposits: [], totalDeposited: 0, totalSpent: 0, balance: 0 }
 };
 
 export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
@@ -42,6 +43,64 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
 
   const updateFixedCosts = (newCosts: Partial<FixedCosts>) => {
     setData(prev => ({ ...prev, fixedCosts: { ...prev.fixedCosts, ...newCosts } }));
+  };
+
+  // Logistics Fund functions
+  const addLogisticsDeposit = (deposit: Omit<LogisticsFundDeposit, 'id'>) => {
+    setData(prev => {
+      const newDeposit = { ...deposit, id: Date.now() };
+      const newDeposits = [...prev.logisticsFund.deposits, newDeposit];
+      const totalDeposited = newDeposits.reduce((sum, d) => sum + d.value, 0);
+      const totalSpent = prev.shoppingTrips
+        .filter(t => t.status === 'completed')
+        .reduce((sum, t) => sum + t.totalLogistics, 0);
+      return {
+        ...prev,
+        logisticsFund: {
+          deposits: newDeposits,
+          totalDeposited,
+          totalSpent,
+          balance: totalDeposited - totalSpent
+        }
+      };
+    });
+  };
+
+  const removeLogisticsDeposit = (id: number) => {
+    setData(prev => {
+      const newDeposits = prev.logisticsFund.deposits.filter(d => d.id !== id);
+      const totalDeposited = newDeposits.reduce((sum, d) => sum + d.value, 0);
+      const totalSpent = prev.shoppingTrips
+        .filter(t => t.status === 'completed')
+        .reduce((sum, t) => sum + t.totalLogistics, 0);
+      return {
+        ...prev,
+        logisticsFund: {
+          deposits: newDeposits,
+          totalDeposited,
+          totalSpent,
+          balance: totalDeposited - totalSpent
+        }
+      };
+    });
+  };
+
+  const recalculateLogisticsFund = () => {
+    setData(prev => {
+      const totalDeposited = prev.logisticsFund.deposits.reduce((sum, d) => sum + d.value, 0);
+      const totalSpent = prev.shoppingTrips
+        .filter(t => t.status === 'completed')
+        .reduce((sum, t) => sum + t.totalLogistics, 0);
+      return {
+        ...prev,
+        logisticsFund: {
+          ...prev.logisticsFund,
+          totalDeposited,
+          totalSpent,
+          balance: totalDeposited - totalSpent
+        }
+      };
+    });
   };
 
   const seed = () => {
@@ -163,7 +222,13 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
       clients: clientsData,
       expenses: [],
       shoppingTrips: [trip1],
-      fixedCosts: { total: 2500, estimatedSales: 500, items: [{ id: 1, name: 'Aluguel', value: 1500 }] }
+      fixedCosts: { total: 2500, estimatedSales: 500, items: [{ id: 1, name: 'Aluguel', value: 1500 }] },
+      logisticsFund: { 
+        deposits: [{ id: 1, date: '2025-11-01', value: 50, description: 'Depósito inicial' }], 
+        totalDeposited: 50, 
+        totalSpent: 71.50, 
+        balance: -21.50 
+      }
     };
 
     setData(prev => ({ ...prev, ...newData }));
@@ -197,7 +262,7 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
     reader.readAsText(file);
   };
 
-  return { data, add, update, remove, updateFixedCosts, seed, backup, restore };
+  return { data, add, update, remove, updateFixedCosts, addLogisticsDeposit, removeLogisticsDeposit, recalculateLogisticsFund, seed, backup, restore };
 };
 
 export type DatabaseHook = ReturnType<typeof useLocalData>;
