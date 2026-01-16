@@ -51,8 +51,9 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
       const newDeposit = { ...deposit, id: Date.now() };
       const newDeposits = [...prev.logisticsFund.deposits, newDeposit];
       const totalDeposited = newDeposits.reduce((sum, d) => sum + d.value, 0);
+      // Only count confirmed logistics expenses
       const totalSpent = prev.shoppingTrips
-        .filter(t => t.status === 'completed')
+        .filter(t => t.logisticsConfirmed === true)
         .reduce((sum, t) => sum + t.totalLogistics, 0);
       return {
         ...prev,
@@ -70,8 +71,9 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
     setData(prev => {
       const newDeposits = prev.logisticsFund.deposits.filter(d => d.id !== id);
       const totalDeposited = newDeposits.reduce((sum, d) => sum + d.value, 0);
+      // Only count confirmed logistics expenses
       const totalSpent = prev.shoppingTrips
-        .filter(t => t.status === 'completed')
+        .filter(t => t.logisticsConfirmed === true)
         .reduce((sum, t) => sum + t.totalLogistics, 0);
       return {
         ...prev,
@@ -88,11 +90,34 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
   const recalculateLogisticsFund = () => {
     setData(prev => {
       const totalDeposited = prev.logisticsFund.deposits.reduce((sum, d) => sum + d.value, 0);
+      // Only count confirmed logistics expenses
       const totalSpent = prev.shoppingTrips
-        .filter(t => t.status === 'completed')
+        .filter(t => t.logisticsConfirmed === true)
         .reduce((sum, t) => sum + t.totalLogistics, 0);
       return {
         ...prev,
+        logisticsFund: {
+          ...prev.logisticsFund,
+          totalDeposited,
+          totalSpent,
+          balance: totalDeposited - totalSpent
+        }
+      };
+    });
+  };
+
+  const confirmLogisticsExpense = (tripId: number) => {
+    setData(prev => {
+      const updatedTrips = prev.shoppingTrips.map(t =>
+        t.id === tripId ? { ...t, logisticsConfirmed: true } : t
+      );
+      const totalDeposited = prev.logisticsFund.deposits.reduce((sum, d) => sum + d.value, 0);
+      const totalSpent = updatedTrips
+        .filter(t => t.logisticsConfirmed === true)
+        .reduce((sum, t) => sum + t.totalLogistics, 0);
+      return {
+        ...prev,
+        shoppingTrips: updatedTrips,
         logisticsFund: {
           ...prev.logisticsFund,
           totalDeposited,
@@ -262,7 +287,7 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
     reader.readAsText(file);
   };
 
-  return { data, add, update, remove, updateFixedCosts, addLogisticsDeposit, removeLogisticsDeposit, recalculateLogisticsFund, seed, backup, restore };
+  return { data, add, update, remove, updateFixedCosts, addLogisticsDeposit, removeLogisticsDeposit, recalculateLogisticsFund, confirmLogisticsExpense, seed, backup, restore };
 };
 
 export type DatabaseHook = ReturnType<typeof useLocalData>;

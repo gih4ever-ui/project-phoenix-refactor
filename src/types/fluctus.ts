@@ -205,6 +205,7 @@ export interface ShoppingTrip {
   totalLogistics: number;
   totalGoods: number;
   grandTotal: number;
+  logisticsConfirmed?: boolean; // Whether the logistics cost has been deducted from the fund
 }
 
 export interface FixedCostItem {
