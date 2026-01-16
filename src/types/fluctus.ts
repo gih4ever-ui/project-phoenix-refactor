@@ -219,6 +219,20 @@ export interface FixedCosts {
   items: FixedCostItem[];
 }
 
+export interface LogisticsFundDeposit {
+  id: number;
+  date: string;
+  value: number;
+  description?: string;
+}
+
+export interface LogisticsFund {
+  deposits: LogisticsFundDeposit[];
+  totalDeposited: number;
+  totalSpent: number; // Calculated from completed shopping trips
+  balance: number;
+}
+
 export interface FluctusData {
   materials: Material[];
   extras: Extra[];
@@ -230,6 +244,7 @@ export interface FluctusData {
   fixedCosts: FixedCosts;
   kits: Kit[];
   shoppingTrips: ShoppingTrip[];
+  logisticsFund: LogisticsFund;
 }
 
 export type ViewType = 
@@ -243,4 +258,5 @@ export type ViewType =
   | 'products' 
   | 'kits' 
   | 'clients' 
-  | 'financial';
+  | 'financial'
+  | 'logistics';

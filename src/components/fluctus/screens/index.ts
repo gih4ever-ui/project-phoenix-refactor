@@ -4,6 +4,7 @@ export { SupplierManager } from './SupplierManager';
 export { MaterialManager } from './MaterialManager';
 export { ExtrasManager } from './ExtrasManager';
 export { FixedCosts } from './FixedCosts';
+export { LogisticsFund } from './LogisticsFund';
 export { ClientManager } from './ClientManager';
 export { Catalog } from './Catalog';
 export { ProductPricing } from './ProductPricing';

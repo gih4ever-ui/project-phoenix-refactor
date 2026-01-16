@@ -9,7 +9,7 @@ interface ShoppingManagerProps {
 }
 
 export default function ShoppingManager({ db }: ShoppingManagerProps) {
-  const { data, add, update, remove } = db;
+  const { data, add, update, remove, recalculateLogisticsFund } = db;
   const { shoppingTrips = [], materials = [], extras = [], suppliers = [] } = data;
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -294,7 +294,7 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     });
   };
 
-  // Toggle trip status and calculate logistics proration when completing
+  // Toggle trip status and recalculate logistics fund when completing
   const handleToggleStatus = (tripId: number) => {
     const trip = shoppingTrips.find(t => t.id === tripId);
     if (!trip) return;
@@ -302,11 +302,14 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     const newStatus = trip.status === 'open' ? 'completed' : 'open';
     
     if (newStatus === 'completed') {
-      // Just mark as completed - logistics is now a fixed cost, not per-trip
+      // Mark as completed and recalculate logistics fund
       update('shoppingTrips', tripId, { status: 'completed' });
+      // Recalculate fund after state update
+      setTimeout(() => recalculateLogisticsFund(), 0);
     } else {
-      // Just toggle back to open
+      // Toggle back to open and recalculate
       update('shoppingTrips', tripId, { status: 'open' });
+      setTimeout(() => recalculateLogisticsFund(), 0);
     }
   };
 
