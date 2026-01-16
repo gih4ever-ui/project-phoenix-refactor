@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Truck, PiggyBank, TrendingUp, TrendingDown, Calendar } from "lucide-react";
+import { Plus, Trash2, Truck, PiggyBank, TrendingUp, TrendingDown, Calendar, AlertTriangle, Check, Clock } from "lucide-react";
 import { Card, Button, Input } from "../ui";
 import { safeFixed } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
@@ -9,7 +9,7 @@ interface LogisticsFundProps {
 }
 
 export const LogisticsFund = ({ db }: LogisticsFundProps) => {
-  const { data, addLogisticsDeposit, removeLogisticsDeposit } = db;
+  const { data, addLogisticsDeposit, removeLogisticsDeposit, confirmLogisticsExpense } = db;
   const { logisticsFund, shoppingTrips } = data;
   
   const [newDeposit, setNewDeposit] = useState({ value: "", description: "" });
@@ -27,17 +27,52 @@ export const LogisticsFund = ({ db }: LogisticsFundProps) => {
     setNewDeposit({ value: "", description: "" });
   };
 
-  // Get completed trips with logistics costs
-  const completedTrips = shoppingTrips.filter(t => t.status === 'completed' && t.totalLogistics > 0);
+  // Get trips with logistics costs (both confirmed and pending)
+  const tripsWithLogistics = shoppingTrips.filter(t => t.totalLogistics > 0);
+  const confirmedTrips = tripsWithLogistics.filter(t => t.logisticsConfirmed === true);
+  const pendingTrips = tripsWithLogistics.filter(t => t.status === 'completed' && !t.logisticsConfirmed);
+
+  // Calculate pending amount (not yet deducted)
+  const pendingAmount = pendingTrips.reduce((sum, t) => sum + t.totalLogistics, 0);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
+  const isNegative = logisticsFund.balance < 0;
+  const amountNeeded = Math.abs(logisticsFund.balance);
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-foreground">Fundo de Logística</h2>
+      
+      {/* Negative Balance Alert */}
+      {isNegative && (
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 flex items-start gap-3">
+          <AlertTriangle className="text-destructive mt-0.5 flex-shrink-0" size={24} />
+          <div>
+            <h3 className="font-bold text-destructive">Saldo Negativo!</h3>
+            <p className="text-sm text-destructive/80">
+              Você precisa depositar <span className="font-bold">R$ {safeFixed(amountNeeded)}</span> para cobrir os gastos confirmados.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Expenses Alert */}
+      {pendingTrips.length > 0 && (
+        <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 flex items-start gap-3">
+          <Clock className="text-warning mt-0.5 flex-shrink-0" size={24} />
+          <div>
+            <h3 className="font-bold text-warning">Gastos Pendentes</h3>
+            <p className="text-sm text-warning/80">
+              Você tem <span className="font-bold">{pendingTrips.length}</span> viagem(ns) com gastos de logística aguardando confirmação.
+              Total pendente: <span className="font-bold">R$ {safeFixed(pendingAmount)}</span>
+            </p>
+          </div>
+        </div>
+      )}
       
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -59,24 +94,24 @@ export const LogisticsFund = ({ db }: LogisticsFundProps) => {
               <Truck className="text-destructive" size={24} />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Gasto</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Gasto (confirmado)</p>
               <p className="text-2xl font-bold text-destructive">R$ {safeFixed(logisticsFund.totalSpent)}</p>
             </div>
           </div>
         </Card>
         
-        <Card className={`${logisticsFund.balance >= 0 ? 'bg-primary/10 border-primary/30' : 'bg-warning/10 border-warning/30'}`}>
+        <Card className={`${logisticsFund.balance >= 0 ? 'bg-primary/10 border-primary/30' : 'bg-destructive/10 border-destructive/30'}`}>
           <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-full ${logisticsFund.balance >= 0 ? 'bg-primary/20' : 'bg-warning/20'}`}>
+            <div className={`p-3 rounded-full ${logisticsFund.balance >= 0 ? 'bg-primary/20' : 'bg-destructive/20'}`}>
               {logisticsFund.balance >= 0 ? (
                 <TrendingUp className="text-primary" size={24} />
               ) : (
-                <TrendingDown className="text-warning" size={24} />
+                <TrendingDown className="text-destructive" size={24} />
               )}
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo</p>
-              <p className={`text-2xl font-bold ${logisticsFund.balance >= 0 ? 'text-primary' : 'text-warning'}`}>
+              <p className={`text-2xl font-bold ${logisticsFund.balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
                 R$ {safeFixed(logisticsFund.balance)}
               </p>
             </div>
@@ -150,43 +185,85 @@ export const LogisticsFund = ({ db }: LogisticsFundProps) => {
         {/* Expenses Section (from shopping trips) */}
         <Card>
           <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-            <Truck className="text-destructive" /> Gastos (Viagens de Compras)
+            <Truck className="text-destructive" /> Gastos de Viagens
           </h3>
           
           <div className="bg-muted rounded-lg border border-border divide-y divide-border max-h-80 overflow-y-auto">
-            {completedTrips.length === 0 ? (
+            {tripsWithLogistics.length === 0 ? (
               <p className="p-4 text-center text-muted-foreground text-sm">
                 Nenhuma viagem com gastos de logística.
               </p>
             ) : (
-              completedTrips
+              tripsWithLogistics
                 .slice()
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .map((trip) => (
-                  <div key={trip.id} className="p-3 hover:bg-card transition-colors">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
-                        <Calendar size={14} className="text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">{formatDate(trip.date)}</span>
-                      </div>
-                      <span className="font-bold text-destructive">-R$ {safeFixed(trip.totalLogistics)}</span>
-                    </div>
-                    <div className="pl-6 space-y-1">
-                      {trip.logistics.map((item) => (
-                        <div key={item.id} className="flex justify-between text-xs text-muted-foreground">
-                          <span>{item.desc} ({item.type === 'transport' ? 'Transporte' : 'Alimentação'})</span>
-                          <span>R$ {safeFixed(item.value)}</span>
+                .map((trip) => {
+                  const isConfirmed = trip.logisticsConfirmed === true;
+                  const isPending = trip.status === 'completed' && !isConfirmed;
+                  const isOpen = trip.status === 'open';
+                  
+                  return (
+                    <div key={trip.id} className={`p-3 hover:bg-card transition-colors ${isConfirmed ? 'opacity-70' : ''}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <Calendar size={14} className="text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">{formatDate(trip.date)}</span>
+                          {isConfirmed && (
+                            <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Check size={12} /> Confirmado
+                            </span>
+                          )}
+                          {isPending && (
+                            <span className="text-xs bg-warning/20 text-warning px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Clock size={12} /> Pendente
+                            </span>
+                          )}
+                          {isOpen && (
+                            <span className="text-xs bg-muted-foreground/20 text-muted-foreground px-2 py-0.5 rounded-full">
+                              Viagem aberta
+                            </span>
+                          )}
                         </div>
-                      ))}
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold ${isConfirmed ? 'text-destructive' : 'text-muted-foreground'}`}>
+                            {isConfirmed ? '-' : ''}R$ {safeFixed(trip.totalLogistics)}
+                          </span>
+                          {isPending && (
+                            <Button
+                              variant="danger"
+                              onClick={() => confirmLogisticsExpense(trip.id)}
+                              className="text-xs px-2 py-1 h-auto"
+                            >
+                              Confirmar Gasto
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="pl-6 space-y-1">
+                        {trip.logistics.map((item) => (
+                          <div key={item.id} className="flex justify-between text-xs text-muted-foreground">
+                            <span>{item.desc} ({item.type === 'transport' ? 'Transporte' : 'Alimentação'})</span>
+                            <span>R$ {safeFixed(item.value)}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
             )}
           </div>
           
-          <div className="mt-4 pt-4 border-t border-border flex justify-between items-center">
-            <span className="text-muted-foreground font-medium">Total de Viagens:</span>
-            <span className="font-bold text-foreground">{completedTrips.length}</span>
+          <div className="mt-4 pt-4 border-t border-border space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Viagens confirmadas:</span>
+              <span className="font-bold text-destructive">{confirmedTrips.length} (R$ {safeFixed(logisticsFund.totalSpent)})</span>
+            </div>
+            {pendingTrips.length > 0 && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Aguardando confirmação:</span>
+                <span className="font-bold text-warning">{pendingTrips.length} (R$ {safeFixed(pendingAmount)})</span>
+              </div>
+            )}
           </div>
         </Card>
       </div>
