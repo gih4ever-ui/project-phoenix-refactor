@@ -12,7 +12,8 @@ const INITIAL_DATA: FluctusData = {
   fixedCosts: { total: 0, estimatedSales: 100, items: [] },
   kits: [],
   shoppingTrips: [],
-  logisticsFund: { deposits: [], totalDeposited: 0, totalSpent: 0, balance: 0 }
+  logisticsFund: { deposits: [], totalDeposited: 0, totalSpent: 0, balance: 0 },
+  promotions: []
 };
 
 export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
@@ -275,7 +276,8 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
         totalDeposited: 50, 
         totalSpent: 71.50, 
         balance: -21.50 
-      }
+      },
+      promotions: []
     };
 
     setData(prev => ({ ...prev, ...newData }));
