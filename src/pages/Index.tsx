@@ -1,12 +1,12 @@
 import { useState } from "react";
 import {
-  LayoutDashboard, Package, Truck, Store, Users, Wallet, Tag, Box, Grid, Gift, LogOut, ArrowDown, ArrowUp, ListFilter, ShoppingCart
+  LayoutDashboard, Package, Truck, Store, Users, Wallet, Tag, Box, Grid, Gift, LogOut, ArrowDown, ArrowUp, ListFilter, ShoppingCart, Percent
 } from "lucide-react";
 import { useLocalData } from "@/hooks/useLocalData";
 import { ViewType } from "@/types/fluctus";
 import {
   LoginScreen, Dashboard, SupplierManager, MaterialManager, ExtrasManager,
-  FixedCosts, LogisticsFund, ClientManager, Catalog, ProductPricing, ShoppingManager
+  FixedCosts, LogisticsFund, ClientManager, Catalog, ProductPricing, ShoppingManager, PromotionsManager
 } from "@/components/fluctus/screens";
 
 const menuItems = [
@@ -19,6 +19,7 @@ const menuItems = [
   { id: "products" as ViewType, label: "Produtos", icon: Tag },
   { id: "kits" as ViewType, label: "Kits", icon: Box },
   { id: "clients" as ViewType, label: "Clientes", icon: Users },
+  { id: "promotions" as ViewType, label: "Promoções", icon: Percent },
   { id: "financial" as ViewType, label: "Custos Fixos", icon: Wallet },
   { id: "logistics" as ViewType, label: "Fundo Logística", icon: Truck },
 ];
@@ -53,6 +54,8 @@ const Index = () => {
         return <Catalog db={db} />;
       case "clients":
         return <ClientManager db={db} />;
+      case "promotions":
+        return <PromotionsManager db={db} />;
       case "financial":
         return <FixedCosts db={db} />;
       case "logistics":

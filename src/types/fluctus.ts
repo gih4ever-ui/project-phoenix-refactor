@@ -141,11 +141,13 @@ export interface ClientComment {
 
 export interface ClientDiscount {
   id: number;
+  promotionId: number;
   code: string;
   description: string;
   validUntil: string;
   dateGiven: string;
   used: boolean;
+  usedAt?: string;
 }
 
 export interface Client {
@@ -169,6 +171,64 @@ export interface Client {
   purchases: any[];
   comments?: ClientComment[];
   discounts?: ClientDiscount[];
+}
+
+// Promotion Types based on common e-commerce patterns
+export type PromotionType = 
+  | 'take_x_pay_y'      // Leve X, pague Y
+  | 'time_coupon'       // Cupom com limite de tempo
+  | 'free_shipping'     // Frete grátis com valor mínimo
+  | 'cross_selling'     // Desconto ao adicionar outro produto
+  | 'seasonal'          // Promoção sazonal
+  | 'progressive'       // Desconto progressivo (mais compra = mais desconto)
+  | 'first_purchase'    // Desconto primeira compra
+  | 'percentage'        // Desconto simples em %
+  | 'fixed_value';      // Desconto valor fixo
+
+export interface Promotion {
+  id: number;
+  name: string;
+  type: PromotionType;
+  description: string;
+  code?: string; // Código do cupom (opcional)
+  
+  // Discount values
+  discountPercent?: number;
+  discountValue?: number;
+  
+  // Take X Pay Y specific
+  takeQuantity?: number;
+  payQuantity?: number;
+  
+  // Free shipping specific
+  minOrderValue?: number;
+  
+  // Progressive discount tiers
+  progressiveTiers?: { minQty: number; discount: number }[];
+  
+  // Cross selling specific
+  requiredProductId?: number;
+  discountProductId?: number;
+  
+  // Targeting
+  targetType: 'all' | 'tags' | 'individual'; // Who can use
+  targetTags?: string[]; // If targetType is 'tags'
+  targetClientIds?: number[]; // If targetType is 'individual'
+  
+  // Validity
+  startDate: string;
+  endDate: string;
+  active: boolean;
+  
+  // Usage limits
+  maxUsesTotal?: number; // Total uses allowed
+  maxUsesPerClient?: number; // Uses per client
+  
+  // Stats
+  totalGiven: number; // Total clients who received
+  totalUsed: number; // Total uses
+  
+  createdAt: string;
 }
 
 export interface LogisticsItem {
@@ -246,6 +306,7 @@ export interface FluctusData {
   kits: Kit[];
   shoppingTrips: ShoppingTrip[];
   logisticsFund: LogisticsFund;
+  promotions: Promotion[];
 }
 
 export type ViewType = 
@@ -260,4 +321,5 @@ export type ViewType =
   | 'kits' 
   | 'clients' 
   | 'financial'
-  | 'logistics';
+  | 'logistics'
+  | 'promotions';
