@@ -128,6 +128,28 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
     });
   };
 
+  const unconfirmLogisticsExpense = (tripId: number) => {
+    setData(prev => {
+      const updatedTrips = prev.shoppingTrips.map(t =>
+        t.id === tripId ? { ...t, logisticsConfirmed: false } : t
+      );
+      const totalDeposited = prev.logisticsFund.deposits.reduce((sum, d) => sum + d.value, 0);
+      const totalSpent = updatedTrips
+        .filter(t => t.logisticsConfirmed === true)
+        .reduce((sum, t) => sum + t.totalLogistics, 0);
+      return {
+        ...prev,
+        shoppingTrips: updatedTrips,
+        logisticsFund: {
+          ...prev.logisticsFund,
+          totalDeposited,
+          totalSpent,
+          balance: totalDeposited - totalSpent
+        }
+      };
+    });
+  };
+
   const seed = () => {
     const now = Date.now();
     const poloId1 = now + 1;
@@ -287,7 +309,7 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
     reader.readAsText(file);
   };
 
-  return { data, add, update, remove, updateFixedCosts, addLogisticsDeposit, removeLogisticsDeposit, recalculateLogisticsFund, confirmLogisticsExpense, seed, backup, restore };
+  return { data, add, update, remove, updateFixedCosts, addLogisticsDeposit, removeLogisticsDeposit, recalculateLogisticsFund, confirmLogisticsExpense, unconfirmLogisticsExpense, seed, backup, restore };
 };
 
 export type DatabaseHook = ReturnType<typeof useLocalData>;

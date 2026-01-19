@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { Cake, Wand2, Download, Upload } from "lucide-react";
+import { Cake, Wand2, Download, Upload, Truck, AlertTriangle } from "lucide-react";
 import { Card, Button, Badge } from "../ui";
 import { safeFixed } from "@/lib/utils";
 import { FluctusData } from "@/types/fluctus";
@@ -80,7 +80,7 @@ export const Dashboard = ({ data, seed, backup, restore }: DashboardProps) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="border-l-4 border-l-primary">
           <p className="text-muted-foreground text-sm font-medium">Produtos Cadastrados</p>
           <p className="text-3xl font-bold text-foreground">{products.length}</p>
@@ -88,6 +88,21 @@ export const Dashboard = ({ data, seed, backup, restore }: DashboardProps) => {
         <Card className="border-l-4 border-l-warning">
           <p className="text-muted-foreground text-sm font-medium">Total Gasto (Compras)</p>
           <p className="text-3xl font-bold text-foreground">R$ {safeFixed(totalSpent)}</p>
+        </Card>
+        <Card className={`border-l-4 ${data.logisticsFund.balance >= 0 ? 'border-l-success' : 'border-l-destructive'}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-muted-foreground text-sm font-medium flex items-center gap-1">
+                <Truck size={14} /> Fundo Logística
+              </p>
+              <p className={`text-3xl font-bold ${data.logisticsFund.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
+                R$ {safeFixed(data.logisticsFund.balance)}
+              </p>
+            </div>
+            {data.logisticsFund.balance < 0 && (
+              <AlertTriangle className="text-destructive" size={24} />
+            )}
+          </div>
         </Card>
       </div>
 

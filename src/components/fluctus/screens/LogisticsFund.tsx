@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Truck, PiggyBank, TrendingUp, TrendingDown, Calendar, AlertTriangle, Check, Clock } from "lucide-react";
+import { Plus, Trash2, Truck, PiggyBank, TrendingUp, TrendingDown, Calendar, AlertTriangle, Check, Clock, Undo2 } from "lucide-react";
 import { Card, Button, Input } from "../ui";
 import { safeFixed } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
@@ -9,7 +9,7 @@ interface LogisticsFundProps {
 }
 
 export const LogisticsFund = ({ db }: LogisticsFundProps) => {
-  const { data, addLogisticsDeposit, removeLogisticsDeposit, confirmLogisticsExpense } = db;
+  const { data, addLogisticsDeposit, removeLogisticsDeposit, confirmLogisticsExpense, unconfirmLogisticsExpense } = db;
   const { logisticsFund, shoppingTrips } = data;
   
   const [newDeposit, setNewDeposit] = useState({ value: "", description: "" });
@@ -235,6 +235,16 @@ export const LogisticsFund = ({ db }: LogisticsFundProps) => {
                               className="text-xs px-2 py-1 h-auto"
                             >
                               Confirmar Gasto
+                            </Button>
+                          )}
+                          {isConfirmed && (
+                            <Button
+                              variant="outline"
+                              onClick={() => unconfirmLogisticsExpense(trip.id)}
+                              className="text-xs px-2 py-1 h-auto gap-1"
+                              title="Reverter confirmação"
+                            >
+                              <Undo2 size={12} /> Reverter
                             </Button>
                           )}
                         </div>
