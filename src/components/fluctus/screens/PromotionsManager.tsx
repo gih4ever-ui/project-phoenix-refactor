@@ -2,12 +2,14 @@ import { useState, useMemo } from "react";
 import { 
   Plus, Trash2, Pencil, Save, X, Users2, Tag, Percent, Gift, 
   Calendar, ChevronDown, ChevronUp, Check, Clock, Truck, 
-  ShoppingBag, Layers, UserPlus, Send, Eye
+  ShoppingBag, Layers, UserPlus, Send, Eye, MessageCircle, 
+  Copy, ExternalLink, CheckCircle
 } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge } from "../ui";
 import { DatabaseHook } from "@/hooks/useLocalData";
 import { Promotion, PromotionType, Client } from "@/types/fluctus";
 import { SYSTEM_TAGS } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface PromotionsManagerProps {
   db: DatabaseHook;
@@ -45,10 +47,12 @@ export const PromotionsManager = ({ db }: PromotionsManagerProps) => {
   const { promotions, clients } = data;
   
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<'list' | 'create' | 'distribute'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'create' | 'distribute' | 'whatsapp'>('list');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectedPromoForDistribute, setSelectedPromoForDistribute] = useState<number | null>(null);
+  const [whatsappMessage, setWhatsappMessage] = useState("");
+  const [copiedClientId, setCopiedClientId] = useState<number | null>(null);
   const [tagFilter, setTagFilter] = useState<string>("");
   
   const [form, setForm] = useState<Partial<Promotion>>({
@@ -262,6 +266,39 @@ export const PromotionsManager = ({ db }: PromotionsManagerProps) => {
     return clients.filter(c => c.discounts?.some(d => d.promotionId === promoId));
   };
 
+  // Generate WhatsApp message with variables replaced
+  const generatePersonalizedMessage = (client: Client, promo: Promotion | null) => {
+    let message = whatsappMessage;
+    message = message.replace(/\{nome\}/g, client.name.split(' ')[0]);
+    message = message.replace(/\{nome_completo\}/g, client.name);
+    if (promo) {
+      message = message.replace(/\{codigo\}/g, promo.code || '');
+      message = message.replace(/\{promocao\}/g, promo.name);
+      message = message.replace(/\{desconto\}/g, getPromoDiscountText(promo));
+      message = message.replace(/\{validade\}/g, new Date(promo.endDate).toLocaleDateString('pt-BR'));
+    }
+    return message;
+  };
+
+  // Generate WhatsApp link
+  const generateWhatsAppLink = (client: Client, promo: Promotion | null) => {
+    const phone = client.phone?.replace(/\D/g, '');
+    if (!phone) return null;
+    
+    const formattedPhone = phone.startsWith('55') ? phone : `55${phone}`;
+    const message = encodeURIComponent(generatePersonalizedMessage(client, promo));
+    return `https://wa.me/${formattedPhone}?text=${message}`;
+  };
+
+  // Copy message to clipboard
+  const handleCopyMessage = (client: Client, promo: Promotion | null) => {
+    const message = generatePersonalizedMessage(client, promo);
+    navigator.clipboard.writeText(message);
+    setCopiedClientId(client.id);
+    toast.success("Mensagem copiada!");
+    setTimeout(() => setCopiedClientId(null), 2000);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -310,6 +347,17 @@ export const PromotionsManager = ({ db }: PromotionsManagerProps) => {
         >
           <Send size={16} className="inline mr-2" />
           Distribuir
+        </button>
+        <button
+          onClick={() => setActiveTab('whatsapp')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'whatsapp' 
+              ? 'border-primary text-primary' 
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <MessageCircle size={16} className="inline mr-2" />
+          WhatsApp
         </button>
       </div>
 
@@ -781,6 +829,203 @@ export const PromotionsManager = ({ db }: PromotionsManagerProps) => {
               )}
             </>
           )}
+        </Card>
+      )}
+
+      {/* WhatsApp View */}
+      {activeTab === 'whatsapp' && (
+        <Card>
+          <h3 className="text-lg font-semibold mb-4 text-foreground flex items-center gap-2">
+            <MessageCircle className="text-success" size={24} />
+            Enviar Promoção via WhatsApp
+          </h3>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: Configuration */}
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
+                  Selecione a Promoção (opcional)
+                </label>
+                <select
+                  className="w-full border border-input rounded-lg p-2 text-sm bg-card text-foreground"
+                  value={selectedPromoForDistribute || ''}
+                  onChange={(e) => setSelectedPromoForDistribute(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">Sem promoção específica</option>
+                  {promotions.filter(p => p.active && !isPromoExpired(p)).map(p => (
+                    <option key={p.id} value={p.id}>{p.name} - {p.code}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
+                  Filtrar Clientes por Tag
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setTagFilter('')}
+                    className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                      tagFilter === ''
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-card text-foreground border-border hover:border-primary'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {SYSTEM_TAGS.map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => setTagFilter(tag)}
+                      className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                        tagFilter === tag
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-card text-foreground border-border hover:border-primary'
+                      }`}
+                    >
+                      {tag} ({clients.filter(c => c.tags?.includes(tag)).length})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
+                  Mensagem Personalizada
+                </label>
+                <textarea
+                  className="w-full border border-input rounded-lg p-3 text-sm bg-card text-foreground min-h-[150px] resize-none"
+                  value={whatsappMessage}
+                  onChange={(e) => setWhatsappMessage(e.target.value)}
+                  placeholder="Olá {nome}! 🎉 Temos uma oferta especial pra você..."
+                />
+                <div className="mt-2 p-3 bg-muted rounded-lg">
+                  <p className="text-xs font-bold text-muted-foreground mb-2">Variáveis disponíveis:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { var: '{nome}', desc: 'Primeiro nome' },
+                      { var: '{nome_completo}', desc: 'Nome completo' },
+                      { var: '{codigo}', desc: 'Código do cupom' },
+                      { var: '{promocao}', desc: 'Nome da promoção' },
+                      { var: '{desconto}', desc: 'Valor do desconto' },
+                      { var: '{validade}', desc: 'Data de validade' },
+                    ].map(v => (
+                      <button
+                        key={v.var}
+                        onClick={() => setWhatsappMessage(prev => prev + v.var)}
+                        className="text-xs px-2 py-1 bg-card border border-border rounded hover:border-primary transition-colors"
+                        title={v.desc}
+                      >
+                        <code className="text-primary">{v.var}</code>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Message Preview */}
+              {whatsappMessage && filteredClients[0] && (
+                <div className="p-4 bg-success/10 border border-success/30 rounded-lg">
+                  <p className="text-xs font-bold text-success mb-2 flex items-center gap-1">
+                    <Eye size={12} /> Prévia da mensagem:
+                  </p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">
+                    {generatePersonalizedMessage(
+                      filteredClients[0],
+                      selectedPromoForDistribute 
+                        ? promotions.find(p => p.id === selectedPromoForDistribute) || null
+                        : null
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Right: Client List */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-foreground">
+                  Clientes {tagFilter && `(${tagFilter})`}: {filteredClients.filter(c => c.phone).length} com WhatsApp
+                </p>
+              </div>
+
+              <div className="space-y-2 max-h-[450px] overflow-y-auto">
+                {filteredClients.filter(c => c.phone).length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <MessageCircle size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Nenhum cliente com telefone cadastrado</p>
+                  </div>
+                ) : (
+                  filteredClients.filter(c => c.phone).map(client => {
+                    const selectedPromo = selectedPromoForDistribute 
+                      ? promotions.find(p => p.id === selectedPromoForDistribute) || null
+                      : null;
+                    const whatsappLink = generateWhatsAppLink(client, selectedPromo);
+                    
+                    return (
+                      <div 
+                        key={client.id}
+                        className="flex items-center justify-between p-3 rounded-lg border bg-card border-border hover:border-primary/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center text-success font-bold text-sm shrink-0">
+                            {client.name.charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-foreground truncate">{client.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{client.phone}</p>
+                            <div className="flex gap-1 mt-1 flex-wrap">
+                              {client.tags?.slice(0, 2).map(t => (
+                                <Badge key={t} color="orange" className="text-[10px]">{t}</Badge>
+                              ))}
+                              {(client.tags?.length || 0) > 2 && (
+                                <Badge color="gray" className="text-[10px]">+{(client.tags?.length || 0) - 2}</Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            onClick={() => handleCopyMessage(client, selectedPromo)}
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            title="Copiar mensagem"
+                          >
+                            {copiedClientId === client.id ? (
+                              <CheckCircle size={16} className="text-success" />
+                            ) : (
+                              <Copy size={16} />
+                            )}
+                          </Button>
+                          {whatsappLink && (
+                            <a
+                              href={whatsappLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center h-8 px-3 rounded-lg bg-success text-success-foreground font-medium text-sm hover:bg-success/90 transition-colors"
+                            >
+                              <MessageCircle size={14} className="mr-1" />
+                              Enviar
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {filteredClients.filter(c => c.phone).length > 0 && whatsappMessage && (
+                <div className="mt-4 p-3 bg-muted rounded-lg border border-border">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    💡 <strong>Dica:</strong> Clique em "Enviar" para abrir o WhatsApp com a mensagem pronta, 
+                    ou use "Copiar" para colar manualmente.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </Card>
       )}
     </div>
