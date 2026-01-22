@@ -10,7 +10,8 @@ interface LogisticsFundProps {
 
 export const LogisticsFund = ({ db }: LogisticsFundProps) => {
   const { data, addLogisticsDeposit, removeLogisticsDeposit, confirmLogisticsExpense, unconfirmLogisticsExpense } = db;
-  const { logisticsFund, shoppingTrips } = data;
+  const logisticsFund = data.logisticsFund || { deposits: [], totalDeposited: 0, totalSpent: 0, balance: 0 };
+  const shoppingTrips = data.shoppingTrips || [];
   
   const [newDeposit, setNewDeposit] = useState({ value: "", description: "" });
 
