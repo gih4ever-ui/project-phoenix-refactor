@@ -15,6 +15,7 @@ export const Dashboard = ({ data, seed, backup, restore }: DashboardProps) => {
   const { products, shoppingTrips, clients } = data;
   const totalSpent = (shoppingTrips || []).reduce((acc, trip) => acc + (trip.grandTotal || 0), 0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logisticsFund = data.logisticsFund || { deposits: [], totalDeposited: 0, totalSpent: 0, balance: 0 };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -89,17 +90,17 @@ export const Dashboard = ({ data, seed, backup, restore }: DashboardProps) => {
           <p className="text-muted-foreground text-sm font-medium">Total Gasto (Compras)</p>
           <p className="text-3xl font-bold text-foreground">R$ {safeFixed(totalSpent)}</p>
         </Card>
-        <Card className={`border-l-4 ${data.logisticsFund.balance >= 0 ? 'border-l-success' : 'border-l-destructive'}`}>
+        <Card className={`border-l-4 ${logisticsFund.balance >= 0 ? 'border-l-success' : 'border-l-destructive'}`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted-foreground text-sm font-medium flex items-center gap-1">
                 <Truck size={14} /> Fundo Logística
               </p>
-              <p className={`text-3xl font-bold ${data.logisticsFund.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
-                R$ {safeFixed(data.logisticsFund.balance)}
+              <p className={`text-3xl font-bold ${logisticsFund.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
+                R$ {safeFixed(logisticsFund.balance)}
               </p>
             </div>
-            {data.logisticsFund.balance < 0 && (
+            {logisticsFund.balance < 0 && (
               <AlertTriangle className="text-destructive" size={24} />
             )}
           </div>
