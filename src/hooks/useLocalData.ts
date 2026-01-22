@@ -297,12 +297,67 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
     URL.revokeObjectURL(url);
   };
 
+  // Migration function to ensure compatibility with older backups
+  const migrateData = (parsed: Partial<FluctusData>): FluctusData => {
+    const migrated: FluctusData = {
+      materials: parsed.materials || [],
+      extras: parsed.extras || [],
+      suppliers: parsed.suppliers || [],
+      polos: parsed.polos || [],
+      clients: parsed.clients || [],
+      products: parsed.products || [],
+      expenses: parsed.expenses || [],
+      fixedCosts: parsed.fixedCosts || { total: 0, estimatedSales: 100, items: [] },
+      kits: parsed.kits || [],
+      shoppingTrips: parsed.shoppingTrips || [],
+      logisticsFund: parsed.logisticsFund || { deposits: [], totalDeposited: 0, totalSpent: 0, balance: 0 },
+      promotions: parsed.promotions || []
+    };
+
+    // Ensure logisticsFund has all required properties
+    if (migrated.logisticsFund) {
+      migrated.logisticsFund = {
+        deposits: migrated.logisticsFund.deposits || [],
+        totalDeposited: migrated.logisticsFund.totalDeposited || 0,
+        totalSpent: migrated.logisticsFund.totalSpent || 0,
+        balance: migrated.logisticsFund.balance ?? 0
+      };
+    }
+
+    // Ensure fixedCosts has all required properties
+    if (migrated.fixedCosts) {
+      migrated.fixedCosts = {
+        total: migrated.fixedCosts.total || 0,
+        estimatedSales: migrated.fixedCosts.estimatedSales || 100,
+        items: migrated.fixedCosts.items || []
+      };
+    }
+
+    // Ensure clients have tags array and other new fields
+    migrated.clients = migrated.clients.map(client => ({
+      ...client,
+      tags: client.tags || [],
+      purchases: client.purchases || [],
+      comments: client.comments || [],
+      discounts: client.discounts || []
+    }));
+
+    // Ensure shopping trips have logisticsConfirmed field
+    migrated.shoppingTrips = migrated.shoppingTrips.map(trip => ({
+      ...trip,
+      logisticsConfirmed: trip.logisticsConfirmed ?? false
+    }));
+
+    return migrated;
+  };
+
   const restore = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const parsed = JSON.parse(e.target?.result as string) as FluctusData;
-        setData(parsed);
+        const parsed = JSON.parse(e.target?.result as string);
+        const migrated = migrateData(parsed);
+        setData(migrated);
         alert("Dados restaurados com sucesso!");
       } catch (error) {
         alert("Erro ao restaurar: arquivo inválido.");
