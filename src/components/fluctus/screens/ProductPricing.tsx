@@ -497,6 +497,51 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
     setForm(emptyForm);
   };
 
+  const handleDuplicate = (product: Product) => {
+    const now = Date.now();
+    const duplicatedProduct: Omit<Product, 'id'> = {
+      name: `${product.name} (Cópia)`,
+      description: product.description || "",
+      laborCost: product.laborCost,
+      tax: product.tax,
+      commission: product.commission,
+      platformFee: product.platformFee || 0,
+      margin: product.margin,
+      finalPrice: product.finalPrice,
+      totalCost: product.totalCost,
+      suggestedPrice: product.suggestedPrice,
+      realMargin: product.realMargin,
+      materialCost: product.materialCost || 0,
+      extrasCost: product.extrasCost || 0,
+      fixedCostPerUnit: product.fixedCostPerUnit || 0,
+      variationTypes: (product.variationTypes || []).map((vt, idx) => ({
+        ...vt,
+        id: now + idx + 1000,
+      })),
+      variations: (product.variations || []).map((v, idx) => ({
+        ...v,
+        id: now + idx + 2000,
+        materials: (v.materials || []).map((m, mIdx) => ({
+          ...m,
+          id: now + idx * 100 + mIdx + 3000,
+        })),
+        selectedExtras: (v.selectedExtras || []).map((e, eIdx) => ({
+          ...e,
+          id: now + idx * 100 + eIdx + 4000,
+        })),
+      })),
+      materials: (product.materials || []).map((m, idx) => ({
+        ...m,
+        id: now + idx + 5000,
+      })),
+      selectedExtras: (product.selectedExtras || []).map((e, idx) => ({
+        ...e,
+        id: now + idx + 6000,
+      })),
+    };
+    add("products", duplicatedProduct);
+  };
+
   const toggleExpand = (id: number) => setExpandedCardId(expandedCardId === id ? null : id);
 
   const filteredProducts = products.filter((p) =>
@@ -1238,6 +1283,16 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
                   )}
 
                   <div className="flex justify-end gap-2 pt-3 border-t border-border">
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDuplicate(p);
+                      }}
+                      variant="ghost"
+                      className="text-muted-foreground hover:bg-muted h-8 text-xs"
+                    >
+                      <Copy size={14} /> Duplicar
+                    </Button>
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
