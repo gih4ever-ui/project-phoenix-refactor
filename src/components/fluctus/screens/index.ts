@@ -8,5 +8,6 @@ export { LogisticsFund } from './LogisticsFund';
 export { ClientManager } from './ClientManager';
 export { Catalog } from './Catalog';
 export { ProductPricing } from './ProductPricing';
+export { KitManager } from './KitManager';
 export { default as ShoppingManager } from './ShoppingManager';
 export { PromotionsManager } from './PromotionsManager';
