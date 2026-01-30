@@ -6,7 +6,7 @@ import { useLocalData } from "@/hooks/useLocalData";
 import { ViewType } from "@/types/fluctus";
 import {
   LoginScreen, Dashboard, SupplierManager, MaterialManager, ExtrasManager,
-  FixedCosts, LogisticsFund, ClientManager, Catalog, ProductPricing, ShoppingManager, PromotionsManager
+  FixedCosts, LogisticsFund, ClientManager, Catalog, ProductPricing, KitManager, ShoppingManager, PromotionsManager
 } from "@/components/fluctus/screens";
 
 const menuItems = [
@@ -51,7 +51,7 @@ const Index = () => {
       case "products":
         return <ProductPricing db={db} />;
       case "kits":
-        return <Catalog db={db} />;
+        return <KitManager db={db} />;
       case "clients":
         return <ClientManager db={db} />;
       case "promotions":
