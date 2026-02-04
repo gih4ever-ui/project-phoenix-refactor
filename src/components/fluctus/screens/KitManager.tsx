@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Plus,
   Trash2,
@@ -11,9 +11,10 @@ import {
   Gift,
   X,
   Copy,
+  RefreshCw,
 } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge } from "../ui";
-import { safeFixed } from "@/lib/utils";
+import { safeFixed, safeCeil } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 import { Kit, KitItem, KitExtra } from "@/types/fluctus";
 
@@ -50,7 +51,39 @@ export const KitManager = ({ db }: KitManagerProps) => {
 
   // Helper: get unit cost
   const getUnitCost = (price: number, yieldVal: number): number => {
-    return price / (yieldVal || 1);
+    return safeCeil(price / (yieldVal || 1));
+  };
+
+  // Collect extras from all selected products
+  const collectExtrasFromProducts = useCallback(() => {
+    const extrasMap = new Map<number, number>();
+
+    form.items.forEach((item) => {
+      if (item.withoutPackaging) return; // Skip if without packaging
+      
+      const prod = products.find((p) => p.id === item.id);
+      if (prod && prod.selectedExtras) {
+        prod.selectedExtras.forEach((pe) => {
+          const extraId = Number(pe.extraId);
+          const currentQty = extrasMap.get(extraId) || 0;
+          extrasMap.set(extraId, currentQty + pe.quantity * item.qty);
+        });
+      }
+    });
+
+    return Array.from(extrasMap.entries()).map(([id, qty]) => ({
+      id,
+      qty,
+    }));
+  }, [form.items, products]);
+
+  // Auto-sync extras when products change
+  const handleSyncExtras = () => {
+    const collectedExtras = collectExtrasFromProducts();
+    setForm((prev) => ({
+      ...prev,
+      kitExtras: collectedExtras,
+    }));
   };
 
   // Calculate raw total (sum of all products at full price)
@@ -70,20 +103,21 @@ export const KitManager = ({ db }: KitManagerProps) => {
     return total;
   }, [form.items, products]);
 
-  // Calculate production cost
+  // Calculate production cost - using kit extras instead of product extras
   const totalProductionCost = useMemo(() => {
     let cost = 0;
+    
+    // Sum product costs WITHOUT their original extras
     form.items.forEach((item) => {
       const prod = products.find((p) => p.id === item.id);
       if (prod) {
-        let prodCost = prod.totalCost || 0;
-        if (item.withoutPackaging && prod.extrasCost) {
-          prodCost -= prod.extrasCost;
-        }
-        cost += prodCost * item.qty;
+        // Total cost minus extrasCost (we'll add kit extras separately)
+        const baseCost = (prod.totalCost || 0) - (prod.extrasCost || 0);
+        cost += baseCost * item.qty;
       }
     });
-    // Add kit extras cost
+    
+    // Add kit extras cost (these are the editable ones)
     form.kitExtras.forEach((ke) => {
       const ext = extras.find((e) => e.id === ke.id);
       if (ext) {
@@ -92,6 +126,7 @@ export const KitManager = ({ db }: KitManagerProps) => {
         cost += unitCost * ke.qty;
       }
     });
+    
     return cost;
   }, [form.items, form.kitExtras, products, extras]);
 
@@ -110,9 +145,10 @@ export const KitManager = ({ db }: KitManagerProps) => {
   // Handlers for items
   const handleAddItem = () => {
     if (products.length === 0) return;
+    const newItems = [...form.items, { id: products[0].id, qty: 1, withoutPackaging: false }];
     setForm({
       ...form,
-      items: [...form.items, { id: products[0].id, qty: 1, withoutPackaging: false }],
+      items: newItems,
     });
   };
 
@@ -194,17 +230,10 @@ export const KitManager = ({ db }: KitManagerProps) => {
   };
 
   const handleDuplicate = (kit: Kit) => {
-    const now = Date.now();
     const duplicatedKit: Omit<Kit, 'id'> = {
       name: `${kit.name} (Cópia)`,
-      items: (kit.items || []).map((item, idx) => ({
-        ...item,
-        id: item.id, // Keep product references
-      })),
-      kitExtras: (kit.kitExtras || []).map((ke, idx) => ({
-        ...ke,
-        id: ke.id, // Keep extra references
-      })),
+      items: (kit.items || []).map((item) => ({ ...item })),
+      kitExtras: (kit.kitExtras || []).map((ke) => ({ ...ke })),
       discount: kit.discount || 0,
       finalPrice: kit.finalPrice || 0,
       totalProductionCost: kit.totalProductionCost || 0,
@@ -225,6 +254,19 @@ export const KitManager = ({ db }: KitManagerProps) => {
   const filteredKits = kits.filter((k) =>
     k.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Calculate extras cost for display
+  const kitExtrasCost = useMemo(() => {
+    return form.kitExtras.reduce((sum, ke) => {
+      const ext = extras.find((e) => e.id === ke.id);
+      if (ext) {
+        const price = getExtraPrice(ext);
+        const unitCost = getUnitCost(price, ext.yield || 1);
+        return sum + unitCost * ke.qty;
+      }
+      return sum;
+    }, 0);
+  }, [form.kitExtras, extras]);
 
   return (
     <div className="space-y-6">
@@ -314,18 +356,41 @@ export const KitManager = ({ db }: KitManagerProps) => {
           )}
         </div>
 
-        {/* Kit Extras Section */}
+        {/* Kit Extras Section - with sync button */}
         <div className="mb-6 p-4 bg-muted rounded-lg border border-border">
           <div className="flex items-center justify-between mb-3">
             <h4 className="font-semibold text-foreground flex items-center gap-2">
               <Gift size={18} className="text-accent" /> Extras do Kit
+              <span className="text-xs font-normal text-muted-foreground ml-2">
+                (embalagens, etiquetas, etc.)
+              </span>
             </h4>
-            <Button onClick={handleAddKitExtra} variant="secondary" className="h-8 text-xs">
-              <Plus size={14} /> Adicionar
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleSyncExtras} 
+                variant="ghost" 
+                className="h-8 text-xs text-primary hover:bg-primary/10"
+                title="Carregar extras dos produtos"
+              >
+                <RefreshCw size={14} /> Sincronizar
+              </Button>
+              <Button onClick={handleAddKitExtra} variant="secondary" className="h-8 text-xs">
+                <Plus size={14} /> Adicionar
+              </Button>
+            </div>
           </div>
+          
+          {form.items.length > 0 && form.kitExtras.length === 0 && (
+            <div className="mb-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
+              <p className="text-sm text-primary">
+                💡 Clique em <strong>Sincronizar</strong> para carregar os extras dos produtos selecionados. 
+                Depois você pode ajustar as quantidades ou remover itens.
+              </p>
+            </div>
+          )}
+
           {form.kitExtras.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">Nenhum extra do kit adicionado.</p>
+            <p className="text-sm text-muted-foreground italic">Nenhum extra adicionado.</p>
           ) : (
             <div className="space-y-2">
               {form.kitExtras.map((ke, index) => {
@@ -345,7 +410,7 @@ export const KitManager = ({ db }: KitManagerProps) => {
                     >
                       {extras.map((ex) => (
                         <option key={ex.id} value={ex.id}>
-                          {ex.name} ({ex.useUnit})
+                          {ex.name} ({ex.useUnit}) - R$ {safeFixed(getUnitCost(getExtraPrice(ex), ex.yield || 1))}/un
                         </option>
                       ))}
                     </select>
@@ -368,6 +433,9 @@ export const KitManager = ({ db }: KitManagerProps) => {
                   </div>
                 );
               })}
+              <div className="text-right text-sm font-semibold text-foreground pt-2 border-t border-border">
+                Subtotal Extras: R$ {safeFixed(kitExtrasCost)}
+              </div>
             </div>
           )}
         </div>
@@ -411,13 +479,17 @@ export const KitManager = ({ db }: KitManagerProps) => {
           </div>
 
           {/* Cost Summary */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-border">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-3 border-t border-border">
             <div className="text-center">
               <p className="text-xs text-muted-foreground uppercase">Valor Original</p>
               <p className="text-sm font-bold text-muted-foreground line-through">R$ {safeFixed(rawTotal)}</p>
             </div>
             <div className="text-center">
-              <p className="text-xs text-muted-foreground uppercase">Custo Produção</p>
+              <p className="text-xs text-muted-foreground uppercase">Custo Extras</p>
+              <p className="text-sm font-bold text-foreground">R$ {safeFixed(kitExtrasCost)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground uppercase">Custo Total</p>
               <p className="text-sm font-bold text-foreground">R$ {safeFixed(totalProductionCost)}</p>
             </div>
             <div className="text-center">
@@ -474,6 +546,9 @@ export const KitManager = ({ db }: KitManagerProps) => {
                       Itens: <strong className="text-foreground">{kit.items?.length || 0}</strong>
                     </span>
                     <span className="text-muted-foreground">
+                      Extras: <strong className="text-foreground">{kit.kitExtras?.length || 0}</strong>
+                    </span>
+                    <span className="text-muted-foreground">
                       De: <strong className="text-muted-foreground line-through">R$ {safeFixed(kit.rawTotal)}</strong>
                     </span>
                     <span className="text-muted-foreground">
@@ -491,7 +566,7 @@ export const KitManager = ({ db }: KitManagerProps) => {
 
               {isExpanded && (
                 <div className="border-t border-border bg-muted p-4 animate-fade-in cursor-default">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div className="bg-card p-3 rounded border border-border">
                       <p className="text-xs text-muted-foreground uppercase font-semibold mb-2">
                         Produtos ({kit.items?.length || 0})
@@ -508,6 +583,27 @@ export const KitManager = ({ db }: KitManagerProps) => {
                                 {item.withoutPackaging && (
                                   <Badge color="gray" className="text-xs">Sem emb.</Badge>
                                 )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">Nenhum</p>
+                      )}
+                    </div>
+                    <div className="bg-card p-3 rounded border border-border">
+                      <p className="text-xs text-muted-foreground uppercase font-semibold mb-2">
+                        Extras ({kit.kitExtras?.length || 0})
+                      </p>
+                      {kit.kitExtras && kit.kitExtras.length > 0 ? (
+                        <div className="space-y-2">
+                          {kit.kitExtras.map((ke, idx) => {
+                            const ext = extras.find((e) => e.id === ke.id);
+                            return (
+                              <div key={idx} className="text-sm bg-muted/50 p-2 rounded flex justify-between items-center">
+                                <span className="font-medium text-foreground">
+                                  {ke.qty}x {ext?.name || "Extra não encontrado"}
+                                </span>
                               </div>
                             );
                           })}
