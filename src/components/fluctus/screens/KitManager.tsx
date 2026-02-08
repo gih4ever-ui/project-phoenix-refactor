@@ -13,7 +13,7 @@ import {
   Copy,
   RefreshCw,
 } from "lucide-react";
-import { Card, Button, Input, SearchBar, Badge } from "../ui";
+import { Card, Button, Input, SearchBar, Badge, ConfirmDialog } from "../ui";
 import { safeFixed, safeCeil } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 import { Kit, KitItem, KitExtra } from "@/types/fluctus";
@@ -38,6 +38,7 @@ export const KitManager = ({ db }: KitManagerProps) => {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
 
   // Helper: get the active price for an extra
   const getExtraPrice = (ext: typeof extras[0]) => {
@@ -686,7 +687,7 @@ export const KitManager = ({ db }: KitManagerProps) => {
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        remove("kits", kit.id);
+                        setDeleteConfirm({ open: true, id: kit.id });
                       }}
                       variant="ghost"
                       className="text-destructive hover:bg-destructive/10 h-8 text-xs"
@@ -706,6 +707,16 @@ export const KitManager = ({ db }: KitManagerProps) => {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm({ open, id: open ? deleteConfirm.id : null })}
+        title="Excluir Kit"
+        description="Tem certeza que deseja excluir este kit? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          if (deleteConfirm.id) remove("kits", deleteConfirm.id);
+          setDeleteConfirm({ open: false, id: null });
+        }}
+      />
     </div>
   );
 };

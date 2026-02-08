@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Trash2, Pencil, X, Save, MapPin, Store, Building2 } from "lucide-react";
-import { Card, Button, Input, SearchBar, Badge, AddressForm } from "../ui";
+import { Card, Button, Input, SearchBar, Badge, AddressForm, ConfirmDialog } from "../ui";
 import { fetchCepData } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 
@@ -16,6 +16,7 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
   const [activeTab, setActiveTab] = useState<TabType>("suppliers");
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: number | null; type: 'supplier' | 'polo' }>({ open: false, id: null, type: 'supplier' });
   const [form, setForm] = useState({
     name: "",
     contact: "",
@@ -301,7 +302,7 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
                       <Pencil size={18} />
                     </button>
                     <button
-                      onClick={() => remove("suppliers", s.id)}
+                      onClick={() => setDeleteConfirm({ open: true, id: s.id, type: 'supplier' })}
                       className="text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 size={18} />
@@ -404,7 +405,7 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
                           alert(`Este polo possui ${suppliersInPolo.length} fornecedor(es) vinculado(s). Remova os fornecedores primeiro.`);
                           return;
                         }
-                        remove("polos", polo.id);
+                        setDeleteConfirm({ open: true, id: polo.id, type: 'polo' });
                       }}
                       className="text-muted-foreground hover:text-destructive"
                     >
@@ -423,6 +424,18 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
           </div>
         </>
       )}
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm({ open, id: open ? deleteConfirm.id : null, type: deleteConfirm.type })}
+        title={deleteConfirm.type === 'supplier' ? "Excluir Fornecedor" : "Excluir Polo"}
+        description={`Tem certeza que deseja excluir ${deleteConfirm.type === 'supplier' ? 'este fornecedor' : 'este polo'}? Esta ação não pode ser desfeita.`}
+        onConfirm={() => {
+          if (deleteConfirm.id) {
+            remove(deleteConfirm.type === 'supplier' ? 'suppliers' : 'polos', deleteConfirm.id);
+          }
+          setDeleteConfirm({ open: false, id: null, type: 'supplier' });
+        }}
+      />
     </div>
   );
 };

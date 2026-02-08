@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Package, Plus, Trash2, Edit2, Check, X, Truck, UtensilsCrossed, FileText, Calendar, ShoppingCart } from "lucide-react";
-import { Card, Input, Button, SearchBar, Badge } from "../ui";
+import { Card, Input, Button, SearchBar, Badge, ConfirmDialog } from "../ui";
 import type { DatabaseHook } from "@/hooks/useLocalData";
 import type { ShoppingTrip, LogisticsItem, Invoice, InvoiceItem } from "@/types/fluctus";
 
@@ -14,6 +14,7 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedTrip, setExpandedTrip] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
   
   // New trip form
   const [newTrip, setNewTrip] = useState<Partial<ShoppingTrip>>({
@@ -315,8 +316,15 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
 
   // Delete trip
   const handleDeleteTrip = (tripId: number) => {
-    remove('shoppingTrips', tripId);
-    if (expandedTrip === tripId) setExpandedTrip(null);
+    setDeleteConfirm({ open: true, id: tripId });
+  };
+
+  const confirmDeleteTrip = () => {
+    if (deleteConfirm.id) {
+      remove('shoppingTrips', deleteConfirm.id);
+      if (expandedTrip === deleteConfirm.id) setExpandedTrip(null);
+    }
+    setDeleteConfirm({ open: false, id: null });
   };
 
   const getSupplierName = (id: number | string) => {
@@ -857,6 +865,13 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
           })
         )}
       </div>
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm({ open, id: open ? deleteConfirm.id : null })}
+        title="Excluir Viagem de Compras"
+        description="Tem certeza que deseja excluir esta viagem? Todas as notas fiscais e gastos serão perdidos."
+        onConfirm={confirmDeleteTrip}
+      />
     </div>
   );
 }

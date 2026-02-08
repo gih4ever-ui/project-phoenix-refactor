@@ -13,7 +13,7 @@ import {
   X,
   Copy,
 } from "lucide-react";
-import { Card, Button, Input, SearchBar, Badge } from "../ui";
+import { Card, Button, Input, SearchBar, Badge, ConfirmDialog } from "../ui";
 import { safeFixed, safeCeil } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 import { Product, VariationType, Variation, ProductMaterial, ProductExtra } from "@/types/fluctus";
@@ -49,6 +49,7 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
 
   // Variation Type Form
   const [newVariationType, setNewVariationType] = useState("");
@@ -1306,7 +1307,7 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        remove("products", p.id);
+                        setDeleteConfirm({ open: true, id: p.id });
                       }}
                       variant="ghost"
                       className="text-destructive hover:bg-destructive/10 h-8 text-xs"
@@ -1326,6 +1327,16 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm({ open, id: open ? deleteConfirm.id : null })}
+        title="Excluir Produto"
+        description="Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          if (deleteConfirm.id) remove("products", deleteConfirm.id);
+          setDeleteConfirm({ open: false, id: null });
+        }}
+      />
     </div>
   );
 };
