@@ -4,3 +4,4 @@ export { Input } from './Input';
 export { SearchBar } from './SearchBar';
 export { Badge } from './Badge';
 export { AddressForm } from './AddressForm';
+export { ConfirmDialog } from './ConfirmDialog';

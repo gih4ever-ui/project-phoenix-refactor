@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Plus, Trash2, Pencil, Star, Sparkles, X, Save } from "lucide-react";
-import { Card, Button, Input, SearchBar, Badge } from "../ui";
+import { Card, Button, Input, SearchBar, Badge, ConfirmDialog } from "../ui";
 import { safeFixed } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 import { Quote } from "@/types/fluctus";
@@ -13,6 +13,7 @@ export const ExtrasManager = ({ db }: ExtrasManagerProps) => {
   const { data, add, update, remove } = db;
   const { extras, suppliers } = data;
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
   const [editingExtraId, setEditingExtraId] = useState<number | null>(null);
   const [newExtra, setNewExtra] = useState({
     name: "",
@@ -161,7 +162,7 @@ export const ExtrasManager = ({ db }: ExtrasManagerProps) => {
                       <Pencil size={18} />
                     </button>
                     <button
-                      onClick={() => remove("extras", ext.id)}
+                      onClick={() => setDeleteConfirm({ open: true, id: ext.id })}
                       className="text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 size={18} />
@@ -316,6 +317,16 @@ export const ExtrasManager = ({ db }: ExtrasManagerProps) => {
           );
         })}
       </div>
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm({ open, id: open ? deleteConfirm.id : null })}
+        title="Excluir Extra"
+        description="Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          if (deleteConfirm.id) remove("extras", deleteConfirm.id);
+          setDeleteConfirm({ open: false, id: null });
+        }}
+      />
     </div>
   );
 };

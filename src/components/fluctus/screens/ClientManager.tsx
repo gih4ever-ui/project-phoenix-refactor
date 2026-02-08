@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Plus, Trash2, Pencil, Save, Phone, MapPin, User, MessageSquare, ShoppingBag, Ticket, Clock, X, Star, ChevronDown, ChevronUp, Users2, Gift } from "lucide-react";
-import { Card, Button, Input, SearchBar, Badge, AddressForm } from "../ui";
+import { Card, Button, Input, SearchBar, Badge, AddressForm, ConfirmDialog } from "../ui";
 import { safeFixed, fetchCepData, SYSTEM_TAGS } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 
@@ -43,6 +43,7 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [loadingCep, setLoadingCep] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
   const [activeClientTab, setActiveClientTab] = useState("profile");
   const [newComment, setNewComment] = useState("");
   const [newTag, setNewTag] = useState("");
@@ -573,7 +574,7 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        remove("clients", c.id);
+                        setDeleteConfirm({ open: true, id: c.id });
                       }}
                       variant="ghost"
                       className="text-destructive hover:bg-destructive/10 h-8 text-xs"
@@ -587,6 +588,16 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
           );
         })}
       </div>
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm({ open, id: open ? deleteConfirm.id : null })}
+        title="Excluir Cliente"
+        description="Tem certeza que deseja excluir este cliente? Todo o histórico e dados serão perdidos."
+        onConfirm={() => {
+          if (deleteConfirm.id) remove("clients", deleteConfirm.id);
+          setDeleteConfirm({ open: false, id: null });
+        }}
+      />
     </div>
   );
 };

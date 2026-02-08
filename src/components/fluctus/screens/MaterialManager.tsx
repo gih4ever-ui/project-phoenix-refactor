@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Plus, Trash2, Pencil, Star, Sparkles, X, Save, Check } from "lucide-react";
-import { Card, Button, Input, SearchBar, Badge } from "../ui";
+import { Card, Button, Input, SearchBar, Badge, ConfirmDialog } from "../ui";
 import { safeFixed } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 import { Quote, Material } from "@/types/fluctus";
@@ -13,6 +13,7 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
   const { data, add, update, remove } = db;
   const { materials, suppliers } = data;
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
   const [editingMatId, setEditingMatId] = useState<number | null>(null);
   const [newMat, setNewMat] = useState({
     name: "",
@@ -192,7 +193,7 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                       <Pencil size={18} />
                     </button>
                     <button
-                      onClick={() => remove("materials", m.id)}
+                      onClick={() => setDeleteConfirm({ open: true, id: m.id })}
                       className="text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 size={18} />
@@ -379,6 +380,16 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
           );
         })}
       </div>
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm({ open, id: open ? deleteConfirm.id : null })}
+        title="Excluir Material"
+        description="Tem certeza que deseja excluir este material? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          if (deleteConfirm.id) remove("materials", deleteConfirm.id);
+          setDeleteConfirm({ open: false, id: null });
+        }}
+      />
     </div>
   );
 };

@@ -5,7 +5,7 @@ import {
   ShoppingBag, Layers, UserPlus, Send, Eye, MessageCircle, 
   Copy, ExternalLink, CheckCircle
 } from "lucide-react";
-import { Card, Button, Input, SearchBar, Badge } from "../ui";
+import { Card, Button, Input, SearchBar, Badge, ConfirmDialog } from "../ui";
 import { DatabaseHook } from "@/hooks/useLocalData";
 import { Promotion, PromotionType, Client } from "@/types/fluctus";
 import { SYSTEM_TAGS } from "@/lib/utils";
@@ -50,6 +50,7 @@ export const PromotionsManager = ({ db }: PromotionsManagerProps) => {
   const [activeTab, setActiveTab] = useState<'list' | 'create' | 'distribute' | 'whatsapp'>('list');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
   const [selectedPromoForDistribute, setSelectedPromoForDistribute] = useState<number | null>(null);
   const [whatsappMessage, setWhatsappMessage] = useState("");
   const [copiedClientId, setCopiedClientId] = useState<number | null>(null);
@@ -702,7 +703,7 @@ export const PromotionsManager = ({ db }: PromotionsManagerProps) => {
                             <Pencil size={14} /> Editar
                           </Button>
                           <Button
-                            onClick={() => remove("promotions", promo.id)}
+                            onClick={() => setDeleteConfirm({ open: true, id: promo.id })}
                             variant="ghost"
                             className="text-destructive h-8 text-xs"
                           >
@@ -1028,6 +1029,16 @@ export const PromotionsManager = ({ db }: PromotionsManagerProps) => {
           </div>
         </Card>
       )}
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm({ open, id: open ? deleteConfirm.id : null })}
+        title="Excluir Promoção"
+        description="Tem certeza que deseja excluir esta promoção? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          if (deleteConfirm.id) remove("promotions", deleteConfirm.id);
+          setDeleteConfirm({ open: false, id: null });
+        }}
+      />
     </div>
   );
 };

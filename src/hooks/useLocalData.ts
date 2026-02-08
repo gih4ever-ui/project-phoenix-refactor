@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FluctusData, FixedCosts, LogisticsFund, LogisticsFundDeposit } from '@/types/fluctus';
+
+const STORAGE_KEY = 'fluctus-data';
 
 const INITIAL_DATA: FluctusData = {
   materials: [],
@@ -16,8 +18,85 @@ const INITIAL_DATA: FluctusData = {
   promotions: []
 };
 
-export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
-  const [data, setData] = useState<FluctusData>(initialData);
+// Migration function to ensure compatibility with older backups
+const migrateData = (parsed: Partial<FluctusData>): FluctusData => {
+  const migrated: FluctusData = {
+    materials: parsed.materials || [],
+    extras: parsed.extras || [],
+    suppliers: parsed.suppliers || [],
+    polos: parsed.polos || [],
+    clients: parsed.clients || [],
+    products: parsed.products || [],
+    expenses: parsed.expenses || [],
+    fixedCosts: parsed.fixedCosts || { total: 0, estimatedSales: 100, items: [] },
+    kits: parsed.kits || [],
+    shoppingTrips: parsed.shoppingTrips || [],
+    logisticsFund: parsed.logisticsFund || { deposits: [], totalDeposited: 0, totalSpent: 0, balance: 0 },
+    promotions: parsed.promotions || []
+  };
+
+  if (migrated.logisticsFund) {
+    migrated.logisticsFund = {
+      deposits: migrated.logisticsFund.deposits || [],
+      totalDeposited: migrated.logisticsFund.totalDeposited || 0,
+      totalSpent: migrated.logisticsFund.totalSpent || 0,
+      balance: migrated.logisticsFund.balance ?? 0
+    };
+  }
+
+  if (migrated.fixedCosts) {
+    migrated.fixedCosts = {
+      total: migrated.fixedCosts.total || 0,
+      estimatedSales: migrated.fixedCosts.estimatedSales || 100,
+      items: migrated.fixedCosts.items || []
+    };
+  }
+
+  migrated.clients = migrated.clients.map(client => ({
+    ...client,
+    tags: client.tags || [],
+    purchases: client.purchases || [],
+    comments: client.comments || [],
+    discounts: client.discounts || []
+  }));
+
+  migrated.shoppingTrips = migrated.shoppingTrips.map(trip => ({
+    ...trip,
+    logisticsConfirmed: trip.logisticsConfirmed ?? false
+  }));
+
+  return migrated;
+};
+
+const loadFromStorage = (): FluctusData => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return migrateData(parsed);
+    }
+  } catch (e) {
+    console.error('Erro ao carregar dados do localStorage:', e);
+  }
+  return INITIAL_DATA;
+};
+
+export const useLocalData = (initialData?: FluctusData) => {
+  const [data, setData] = useState<FluctusData>(() => initialData || loadFromStorage());
+  const isFirstRender = useRef(true);
+
+  // Auto-save to localStorage on every change
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+      console.error('Erro ao salvar no localStorage:', e);
+    }
+  }, [data]);
 
   const add = (collection: keyof Omit<FluctusData, 'fixedCosts' | 'expenses'>, item: any) => {
     setData(prev => ({
@@ -46,13 +125,11 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
     setData(prev => ({ ...prev, fixedCosts: { ...prev.fixedCosts, ...newCosts } }));
   };
 
-  // Logistics Fund functions
   const addLogisticsDeposit = (deposit: Omit<LogisticsFundDeposit, 'id'>) => {
     setData(prev => {
       const newDeposit = { ...deposit, id: Date.now() };
       const newDeposits = [...prev.logisticsFund.deposits, newDeposit];
       const totalDeposited = newDeposits.reduce((sum, d) => sum + d.value, 0);
-      // Only count confirmed logistics expenses
       const totalSpent = prev.shoppingTrips
         .filter(t => t.logisticsConfirmed === true)
         .reduce((sum, t) => sum + t.totalLogistics, 0);
@@ -72,7 +149,6 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
     setData(prev => {
       const newDeposits = prev.logisticsFund.deposits.filter(d => d.id !== id);
       const totalDeposited = newDeposits.reduce((sum, d) => sum + d.value, 0);
-      // Only count confirmed logistics expenses
       const totalSpent = prev.shoppingTrips
         .filter(t => t.logisticsConfirmed === true)
         .reduce((sum, t) => sum + t.totalLogistics, 0);
@@ -91,7 +167,6 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
   const recalculateLogisticsFund = () => {
     setData(prev => {
       const totalDeposited = prev.logisticsFund.deposits.reduce((sum, d) => sum + d.value, 0);
-      // Only count confirmed logistics expenses
       const totalSpent = prev.shoppingTrips
         .filter(t => t.logisticsConfirmed === true)
         .reduce((sum, t) => sum + t.totalLogistics, 0);
@@ -281,7 +356,6 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
     };
 
     setData(prev => ({ ...prev, ...newData }));
-    alert("Dados de teste gerados!");
   };
 
   const backup = () => {
@@ -297,60 +371,6 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
     URL.revokeObjectURL(url);
   };
 
-  // Migration function to ensure compatibility with older backups
-  const migrateData = (parsed: Partial<FluctusData>): FluctusData => {
-    const migrated: FluctusData = {
-      materials: parsed.materials || [],
-      extras: parsed.extras || [],
-      suppliers: parsed.suppliers || [],
-      polos: parsed.polos || [],
-      clients: parsed.clients || [],
-      products: parsed.products || [],
-      expenses: parsed.expenses || [],
-      fixedCosts: parsed.fixedCosts || { total: 0, estimatedSales: 100, items: [] },
-      kits: parsed.kits || [],
-      shoppingTrips: parsed.shoppingTrips || [],
-      logisticsFund: parsed.logisticsFund || { deposits: [], totalDeposited: 0, totalSpent: 0, balance: 0 },
-      promotions: parsed.promotions || []
-    };
-
-    // Ensure logisticsFund has all required properties
-    if (migrated.logisticsFund) {
-      migrated.logisticsFund = {
-        deposits: migrated.logisticsFund.deposits || [],
-        totalDeposited: migrated.logisticsFund.totalDeposited || 0,
-        totalSpent: migrated.logisticsFund.totalSpent || 0,
-        balance: migrated.logisticsFund.balance ?? 0
-      };
-    }
-
-    // Ensure fixedCosts has all required properties
-    if (migrated.fixedCosts) {
-      migrated.fixedCosts = {
-        total: migrated.fixedCosts.total || 0,
-        estimatedSales: migrated.fixedCosts.estimatedSales || 100,
-        items: migrated.fixedCosts.items || []
-      };
-    }
-
-    // Ensure clients have tags array and other new fields
-    migrated.clients = migrated.clients.map(client => ({
-      ...client,
-      tags: client.tags || [],
-      purchases: client.purchases || [],
-      comments: client.comments || [],
-      discounts: client.discounts || []
-    }));
-
-    // Ensure shopping trips have logisticsConfirmed field
-    migrated.shoppingTrips = migrated.shoppingTrips.map(trip => ({
-      ...trip,
-      logisticsConfirmed: trip.logisticsConfirmed ?? false
-    }));
-
-    return migrated;
-  };
-
   const restore = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -358,9 +378,8 @@ export const useLocalData = (initialData: FluctusData = INITIAL_DATA) => {
         const parsed = JSON.parse(e.target?.result as string);
         const migrated = migrateData(parsed);
         setData(migrated);
-        alert("Dados restaurados com sucesso!");
       } catch (error) {
-        alert("Erro ao restaurar: arquivo inválido.");
+        console.error("Erro ao restaurar: arquivo inválido.");
       }
     };
     reader.readAsText(file);
