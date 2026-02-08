@@ -255,6 +255,23 @@ export const KitManager = ({ db }: KitManagerProps) => {
     k.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Map extra IDs to source product names
+  const extraSourceMap = useMemo(() => {
+    const map = new Map<number, string[]>();
+    form.items.forEach((item) => {
+      const prod = products.find((p) => p.id === item.id);
+      if (prod?.selectedExtras) {
+        prod.selectedExtras.forEach((pe) => {
+          const extraId = Number(pe.extraId);
+          const sources = map.get(extraId) || [];
+          if (!sources.includes(prod.name)) sources.push(prod.name);
+          map.set(extraId, sources);
+        });
+      }
+    });
+    return map;
+  }, [form.items, products]);
+
   // Calculate extras cost for display
   const kitExtrasCost = useMemo(() => {
     return form.kitExtras.reduce((sum, ke) => {
@@ -398,38 +415,50 @@ export const KitManager = ({ db }: KitManagerProps) => {
                 const price = ext ? getExtraPrice(ext) : 0;
                 const unitCost = ext ? getUnitCost(price, ext.yield || 1) : 0;
                 const lineCost = unitCost * ke.qty;
+                const sourceNames = extraSourceMap.get(ke.id);
                 return (
                   <div
                     key={index}
-                    className="flex items-center gap-3 bg-card p-2 rounded border border-border"
+                    className="flex flex-col gap-1 bg-card p-2 rounded border border-border"
                   >
-                    <select
-                      className="flex-1 border border-input rounded p-1.5 text-sm bg-card text-foreground"
-                      value={ke.id}
-                      onChange={(e) => handleUpdateKitExtra(index, "id", Number(e.target.value))}
-                    >
-                      {extras.map((ex) => (
-                        <option key={ex.id} value={ex.id}>
-                          {ex.name} ({ex.useUnit}) - R$ {safeFixed(getUnitCost(getExtraPrice(ex), ex.yield || 1))}/un
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      className="w-16 border border-input rounded p-1.5 text-sm text-center bg-card text-foreground"
-                      value={ke.qty}
-                      onChange={(e) => handleUpdateKitExtra(index, "qty", Number(e.target.value))}
-                      min={1}
-                    />
-                    <span className="text-xs text-muted-foreground w-24 text-right">
-                      R$ {safeFixed(lineCost)}
-                    </span>
-                    <button
-                      onClick={() => handleRemoveKitExtra(index)}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <X size={16} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <select
+                        className="flex-1 border border-input rounded p-1.5 text-sm bg-card text-foreground"
+                        value={ke.id}
+                        onChange={(e) => handleUpdateKitExtra(index, "id", Number(e.target.value))}
+                      >
+                        {extras.map((ex) => (
+                          <option key={ex.id} value={ex.id}>
+                            {ex.name} ({ex.useUnit}) - R$ {safeFixed(getUnitCost(getExtraPrice(ex), ex.yield || 1))}/un
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        className="w-16 border border-input rounded p-1.5 text-sm text-center bg-card text-foreground"
+                        value={ke.qty}
+                        onChange={(e) => handleUpdateKitExtra(index, "qty", Number(e.target.value))}
+                        min={1}
+                      />
+                      <span className="text-xs text-muted-foreground w-24 text-right">
+                        R$ {safeFixed(lineCost)}
+                      </span>
+                      <button
+                        onClick={() => handleRemoveKitExtra(index)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                    {sourceNames && sourceNames.length > 0 && (
+                      <div className="flex flex-wrap gap-1 ml-1">
+                        {sourceNames.map((name) => (
+                          <span key={name} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                            {name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
