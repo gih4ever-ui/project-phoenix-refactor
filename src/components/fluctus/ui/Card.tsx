@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { ReactNode } from "react";
+import { forwardRef, ReactNode } from "react";
 
 interface CardProps {
   children: ReactNode;
@@ -7,15 +7,20 @@ interface CardProps {
   onClick?: () => void;
 }
 
-export const Card = ({ children, className = "", onClick }: CardProps) => (
-  <div
-    onClick={onClick}
-    className={cn(
-      "bg-card rounded-xl shadow-sm border border-border p-6 transition-all",
-      onClick && "cursor-pointer hover:shadow-md",
-      className
-    )}
-  >
-    {children}
-  </div>
+export const Card = forwardRef<HTMLDivElement, CardProps>(
+  ({ children, className = "", onClick }, ref) => (
+    <div
+      ref={ref}
+      onClick={onClick}
+      className={cn(
+        "bg-card rounded-xl shadow-sm border border-border p-6 transition-all",
+        onClick && "cursor-pointer hover:shadow-md",
+        className
+      )}
+    >
+      {children}
+    </div>
+  )
 );
+
+Card.displayName = "Card";
