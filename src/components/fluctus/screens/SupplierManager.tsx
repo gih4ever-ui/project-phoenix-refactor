@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Plus, Trash2, Pencil, X, Save, MapPin, Store, Building2 } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge, AddressForm, ConfirmDialog } from "../ui";
 import { fetchCepData } from "@/lib/utils";
@@ -402,7 +403,7 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
                       onClick={() => {
                         const suppliersInPolo = suppliers.filter((s) => s.poloId == polo.id);
                         if (suppliersInPolo.length > 0) {
-                          alert(`Este polo possui ${suppliersInPolo.length} fornecedor(es) vinculado(s). Remova os fornecedores primeiro.`);
+                          toast.warning(`Este polo possui ${suppliersInPolo.length} fornecedor(es) vinculado(s). Remova os fornecedores primeiro.`);
                           return;
                         }
                         setDeleteConfirm({ open: true, id: polo.id, type: 'polo' });

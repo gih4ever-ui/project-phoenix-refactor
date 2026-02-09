@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { toast } from "sonner";
 import { Plus, Trash2, Pencil, Save, Phone, MapPin, User, MessageSquare, ShoppingBag, Ticket, Clock, X, Star, ChevronDown, ChevronUp, Users2, Gift } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge, AddressForm, ConfirmDialog } from "../ui";
 import { safeFixed, fetchCepData, SYSTEM_TAGS } from "@/lib/utils";
@@ -118,7 +119,7 @@ export const ClientManager = ({ db }: ClientManagerProps) => {
     // Check if any client is using this tag
     const clientsUsingTag = clients.filter((c) => c.tags?.includes(tagToRemove));
     if (clientsUsingTag.length > 0) {
-      alert(`Esta tag está sendo usada por ${clientsUsingTag.length} cliente(s). Remova a tag dos clientes primeiro.`);
+      toast.warning(`Esta tag está sendo usada por ${clientsUsingTag.length} cliente(s). Remova a tag dos clientes primeiro.`);
       return;
     }
     setAvailableTags(availableTags.filter((t) => t !== tagToRemove));

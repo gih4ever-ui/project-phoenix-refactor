@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { ButtonHTMLAttributes, ReactNode } from "react";
+import { forwardRef, ButtonHTMLAttributes, ReactNode } from "react";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "success" | "warning" | "ghost" | "outline" | "active";
 
@@ -20,17 +20,10 @@ const variants: Record<ButtonVariant, string> = {
   active: "bg-primary/10 text-primary border border-primary/20 shadow-inner"
 };
 
-export const Button = ({
-  children,
-  onClick,
-  variant = "primary",
-  className = "",
-  disabled,
-  type = "button",
-  ...props
-}: ButtonProps) => {
-  return (
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ children, onClick, variant = "primary", className = "", disabled, type = "button", ...props }, ref) => (
     <button
+      ref={ref}
       type={type}
       onClick={onClick}
       disabled={disabled}
@@ -44,5 +37,7 @@ export const Button = ({
     >
       {children}
     </button>
-  );
-};
+  )
+);
+
+Button.displayName = "Button";
