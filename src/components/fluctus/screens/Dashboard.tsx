@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { Cake, Wand2, Download, Upload, Truck, AlertTriangle } from "lucide-react";
+import { Cake, Wand2, Download, Upload, Truck, AlertTriangle, TrendingUp, Calculator, ShoppingCart, Tag, Package } from "lucide-react";
 import { Card, Button, Badge } from "../ui";
 import { safeFixed } from "@/lib/utils";
 import { FluctusData } from "@/types/fluctus";
@@ -24,6 +24,24 @@ export const Dashboard = ({ data, seed, backup, restore }: DashboardProps) => {
       e.target.value = '';
     }
   };
+
+  // Financial metrics
+  const avgTicket = useMemo(() => {
+    if (!products || products.length === 0) return 0;
+    const total = products.reduce((acc, p) => acc + (p.finalPrice || 0), 0);
+    return total / products.length;
+  }, [products]);
+
+  const fixedCostPerUnit = useMemo(() => {
+    const fc = data.fixedCosts;
+    if (!fc || !fc.estimatedSales || fc.estimatedSales === 0) return 0;
+    return fc.total / fc.estimatedSales;
+  }, [data.fixedCosts]);
+
+  const activePromotions = useMemo(() => {
+    if (!data.promotions) return 0;
+    return data.promotions.filter((p) => p.active).length;
+  }, [data.promotions]);
 
   const upcomingBirthdays = useMemo(() => {
     if (!clients) return [];
@@ -81,13 +99,16 @@ export const Dashboard = ({ data, seed, backup, restore }: DashboardProps) => {
         </div>
       </div>
 
+      {/* Primary metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="border-l-4 border-l-primary">
           <p className="text-muted-foreground text-sm font-medium">Produtos Cadastrados</p>
           <p className="text-3xl font-bold text-foreground">{products.length}</p>
         </Card>
         <Card className="border-l-4 border-l-warning">
-          <p className="text-muted-foreground text-sm font-medium">Total Gasto (Compras)</p>
+          <p className="text-muted-foreground text-sm font-medium flex items-center gap-1">
+            <ShoppingCart size={14} /> Total Investido (Compras)
+          </p>
           <p className="text-3xl font-bold text-foreground">R$ {safeFixed(totalSpent)}</p>
         </Card>
         <Card className={`border-l-4 ${logisticsFund.balance >= 0 ? 'border-l-success' : 'border-l-destructive'}`}>
@@ -104,6 +125,38 @@ export const Dashboard = ({ data, seed, backup, restore }: DashboardProps) => {
               <AlertTriangle className="text-destructive" size={24} />
             )}
           </div>
+        </Card>
+      </div>
+
+      {/* Financial metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="border-l-4 border-l-accent">
+          <p className="text-muted-foreground text-sm font-medium flex items-center gap-1">
+            <TrendingUp size={14} /> Ticket Médio
+          </p>
+          <p className="text-2xl font-bold text-foreground">R$ {safeFixed(avgTicket)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{products.length} produto(s)</p>
+        </Card>
+        <Card className="border-l-4 border-l-secondary">
+          <p className="text-muted-foreground text-sm font-medium flex items-center gap-1">
+            <Calculator size={14} /> Custo Fixo/Un.
+          </p>
+          <p className="text-2xl font-bold text-foreground">R$ {safeFixed(fixedCostPerUnit)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{data.fixedCosts?.estimatedSales || 0} un./mês</p>
+        </Card>
+        <Card className="border-l-4 border-l-badge-pink">
+          <p className="text-muted-foreground text-sm font-medium flex items-center gap-1">
+            <Tag size={14} /> Promoções Ativas
+          </p>
+          <p className="text-2xl font-bold text-foreground">{activePromotions}</p>
+          <p className="text-xs text-muted-foreground mt-1">{data.promotions?.length || 0} total</p>
+        </Card>
+        <Card className="border-l-4 border-l-primary">
+          <p className="text-muted-foreground text-sm font-medium flex items-center gap-1">
+            <Package size={14} /> Kits
+          </p>
+          <p className="text-2xl font-bold text-foreground">{data.kits.length}</p>
+          <p className="text-xs text-muted-foreground mt-1">{products.length} produto(s) base</p>
         </Card>
       </div>
 
@@ -187,8 +240,8 @@ export const Dashboard = ({ data, seed, backup, restore }: DashboardProps) => {
               <span className="font-bold text-foreground">{data.clients.length}</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-              <span className="text-sm text-muted-foreground">Kits</span>
-              <span className="font-bold text-foreground">{data.kits.length}</span>
+              <span className="text-sm text-muted-foreground">Compras Realizadas</span>
+              <span className="font-bold text-foreground">{(shoppingTrips || []).length}</span>
             </div>
           </div>
         </Card>
