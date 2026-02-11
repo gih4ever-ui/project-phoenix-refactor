@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Tag, Search, ChevronDown, ChevronUp, Wallet, Percent, CheckCircle, X, CheckSquare, Square, ToggleLeft, ToggleRight } from "lucide-react";
 import { Card, Button, SearchBar, Badge } from "../ui";
-import { safeFixed } from "@/lib/utils";
+import { safeFixed, calcProductExtrasCost, calcKitFinancials } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 
 interface CatalogProps {
@@ -36,54 +36,8 @@ export const Catalog = ({ db }: CatalogProps) => {
     setActiveKitTab("overview");
   };
 
-  const getProductExtrasCost = (product: any) => {
-    if (!product || !product.selectedExtras) return 0;
-    return product.selectedExtras.reduce((acc: number, item: any) => {
-      const extraItem = extras.find((e) => e.id == item.extraId);
-      let costUnit = 0;
-      if (extraItem?.quotes?.length) {
-        costUnit = Math.min(...extraItem.quotes.map((q) => Number(q.price)));
-      } else {
-        costUnit = Number(extraItem?.price) || 0;
-      }
-      const yieldVal = Number(extraItem?.yield) > 0 ? Number(extraItem.yield) : 1;
-      const costPerUseUnit = costUnit / yieldVal;
-      return acc + costPerUseUnit * item.quantity;
-    }, 0);
-  };
-
-  const getKitFinancials = (kit: any) => {
-    let totalCost = 0;
-    (kit.items || []).forEach((item: any) => {
-      const prod = products.find((p) => p.id == item.id);
-      if (prod) {
-        let prodCost = Number(prod.totalCost) || 0;
-        if (item.withoutPackaging) {
-          const packCost = getProductExtrasCost(prod);
-          prodCost -= packCost;
-        }
-        totalCost += prodCost * item.qty;
-      }
-    });
-    (kit.kitExtras || []).forEach((item: any) => {
-      const ext = extras.find((e) => e.id == item.id);
-      if (ext) {
-        let costUnit = 0;
-        if (ext.quotes && ext.quotes.length > 0) {
-          costUnit = Math.min(...ext.quotes.map((q) => Number(q.price)));
-        } else {
-          costUnit = Number(ext.price) || 0;
-        }
-        const yieldVal = Number(ext.yield) > 0 ? Number(ext.yield) : 1;
-        const costPerUse = costUnit / yieldVal;
-        totalCost += costPerUse * item.qty;
-      }
-    });
-    const revenue = Number(kit.finalPrice) || 0;
-    const profit = revenue - totalCost;
-    const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
-    return { totalCost, profit, margin };
-  };
+  const getProductExtrasCost = (product: any) => calcProductExtrasCost(product, extras);
+  const getKitFinancials = (kit: any) => calcKitFinancials(kit, products, extras);
 
   return (
     <div className="space-y-6 animate-fade-in">
