@@ -14,7 +14,7 @@ import {
   Copy,
 } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge, ConfirmDialog } from "../ui";
-import { safeFixed, safeCeil } from "@/lib/utils";
+import { safeFixed, safeCeil, getMaterialPrice, getExtraPrice, getUnitCost, calcProductMaterialsCost } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 import { Product, VariationType, Variation, ProductMaterial, ProductExtra } from "@/types/fluctus";
 
@@ -56,34 +56,7 @@ export const ProductPricing = ({ db }: ProductPricingProps) => {
   const [newOptionForType, setNewOptionForType] = useState<{ [key: number]: string }>({});
   const [editingVariationId, setEditingVariationId] = useState<number | null>(null);
 
-  // Helper: get the active price for a material
-  // Priority: selectedQuoteId > cheapest quote > price
-  const getMaterialPrice = (mat: typeof materials[0]) => {
-    if (mat.selectedQuoteId) {
-      const selectedQuote = mat.quotes.find((q) => q.id === mat.selectedQuoteId);
-      if (selectedQuote) return selectedQuote.price;
-    }
-    // Fallback to cheapest
-    const sortedQuotes = [...mat.quotes].sort((a, b) => a.price - b.price);
-    return sortedQuotes[0]?.price || mat.price || 0;
-  };
-
-  // Helper: get the active price for an extra
-  // Priority: selectedQuoteId > cheapest quote > price
-  const getExtraPrice = (ext: typeof extras[0]) => {
-    if (ext.selectedQuoteId) {
-      const selectedQuote = ext.quotes.find((q) => q.id === ext.selectedQuoteId);
-      if (selectedQuote) return selectedQuote.price;
-    }
-    // Fallback to cheapest
-    const sortedQuotes = [...ext.quotes].sort((a, b) => a.price - b.price);
-    return sortedQuotes[0]?.price || ext.price || 0;
-  };
-
-  // Helper: get unit cost always rounding UP to avoid zero costs
-  const getUnitCost = (price: number, yieldVal: number): number => {
-    return safeCeil(price / (yieldVal || 1));
-  };
+  // Helpers now imported from utils: getMaterialPrice, getExtraPrice, getUnitCost
 
   // Calculate costs
   const materialCost = useMemo(() => {

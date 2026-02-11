@@ -14,7 +14,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge, ConfirmDialog } from "../ui";
-import { safeFixed, safeCeil } from "@/lib/utils";
+import { safeFixed, getExtraPrice, getUnitCost } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 import { Kit, KitItem, KitExtra } from "@/types/fluctus";
 
@@ -40,20 +40,7 @@ export const KitManager = ({ db }: KitManagerProps) => {
   const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
 
-  // Helper: get the active price for an extra
-  const getExtraPrice = (ext: typeof extras[0]) => {
-    if (ext.selectedQuoteId) {
-      const selectedQuote = ext.quotes.find((q) => q.id === ext.selectedQuoteId);
-      if (selectedQuote) return selectedQuote.price;
-    }
-    const sortedQuotes = [...ext.quotes].sort((a, b) => a.price - b.price);
-    return sortedQuotes[0]?.price || ext.price || 0;
-  };
-
-  // Helper: get unit cost
-  const getUnitCost = (price: number, yieldVal: number): number => {
-    return safeCeil(price / (yieldVal || 1));
-  };
+  // Helpers now imported from utils: getExtraPrice, getUnitCost
 
   // Collect extras from all selected products
   const collectExtrasFromProducts = useCallback(() => {
