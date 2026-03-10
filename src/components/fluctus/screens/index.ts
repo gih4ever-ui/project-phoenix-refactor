@@ -1,4 +1,6 @@
 export { LoginScreen } from './LoginScreen';
+export { AuthScreen } from './AuthScreen';
+export { PendingApproval } from './PendingApproval';
 export { Dashboard } from './Dashboard';
 export { SupplierManager } from './SupplierManager';
 export { MaterialManager } from './MaterialManager';

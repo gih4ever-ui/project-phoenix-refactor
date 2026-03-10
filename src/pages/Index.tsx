@@ -3,9 +3,10 @@ import {
   LayoutDashboard, Package, Truck, Store, Users, Wallet, Tag, Box, Grid, Gift, LogOut, ArrowDown, ArrowUp, Menu, ShoppingCart, Percent, X
 } from "lucide-react";
 import { useLocalData } from "@/hooks/useLocalData";
+import { useAuth } from "@/hooks/useAuth";
 import { ViewType } from "@/types/fluctus";
 import {
-  LoginScreen, Dashboard, SupplierManager, MaterialManager, ExtrasManager,
+  AuthScreen, PendingApproval, Dashboard, SupplierManager, MaterialManager, ExtrasManager,
   FixedCosts, LogisticsFund, ClientManager, Catalog, ProductPricing, KitManager, ShoppingManager, PromotionsManager
 } from "@/components/fluctus/screens";
 
@@ -26,13 +27,25 @@ const menuItems = [
 
 const Index = () => {
   const [view, setView] = useState<ViewType>("dashboard");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, role, loading, signOut } = useAuth();
   const db = useLocalData();
 
-  if (!isLoggedIn) {
-    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
+
+  if (role === "pending") {
+    return <PendingApproval />;
   }
 
   const handleMobileNav = (id: ViewType) => {
@@ -114,8 +127,11 @@ const Index = () => {
           ))}
         </nav>
         <div className="p-4 border-t border-sidebar-muted/20">
+          {isSidebarOpen && (
+            <p className="text-xs text-sidebar-muted mb-2 truncate">{user.email}</p>
+          )}
           <button
-            onClick={() => setIsLoggedIn(false)}
+            onClick={signOut}
             className="flex items-center gap-3 text-destructive hover:text-destructive/80 text-sm font-medium w-full p-2 hover:bg-sidebar-muted/20 rounded-lg transition-colors"
           >
             <LogOut size={20} />
@@ -172,9 +188,10 @@ const Index = () => {
                 ))}
               </nav>
               <div className="p-4 border-t border-sidebar-muted/20">
+                <p className="text-xs text-sidebar-muted mb-2 truncate">{user.email}</p>
                 <button
                   onClick={() => {
-                    setIsLoggedIn(false);
+                    signOut();
                     setIsMobileMenuOpen(false);
                   }}
                   className="flex items-center gap-3 text-destructive hover:text-destructive/80 text-sm font-medium w-full p-2 hover:bg-sidebar-muted/20 rounded-lg transition-colors"
