@@ -118,11 +118,11 @@ export const UserManager = () => {
   const roleBadge = (role: string) => {
     switch (role) {
       case "admin":
-        return <Badge variant="success">Admin</Badge>;
+        return <Badge color="green">Admin</Badge>;
       case "approved":
-        return <Badge variant="default">Aprovado</Badge>;
+        return <Badge color="blue">Aprovado</Badge>;
       default:
-        return <Badge variant="warning">Pendente</Badge>;
+        return <Badge color="orange">Pendente</Badge>;
     }
   };
 
