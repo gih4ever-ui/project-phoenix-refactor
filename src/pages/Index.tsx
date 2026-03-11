@@ -183,7 +183,7 @@ const Index = () => {
                 </button>
               </div>
               <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-                {menuItems.map((item) => (
+                {[...filteredMenuItems, ...adminMenuItems].map((item) => (
                   <button
                     key={item.id}
                     onClick={() => handleMobileNav(item.id)}
