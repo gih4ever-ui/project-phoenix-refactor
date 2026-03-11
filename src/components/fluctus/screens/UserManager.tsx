@@ -170,10 +170,10 @@ export const UserManager = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => approveUser(u.id)} className="gap-1">
+                  <Button onClick={() => approveUser(u.id)} className="gap-1 text-sm px-3 py-1.5">
                     <Check size={14} /> Aprovar
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => rejectUser(u.id)} className="gap-1 text-destructive">
+                  <Button variant="outline" onClick={() => rejectUser(u.id)} className="gap-1 text-sm px-3 py-1.5 text-destructive">
                     <X size={14} /> Rejeitar
                   </Button>
                 </div>
