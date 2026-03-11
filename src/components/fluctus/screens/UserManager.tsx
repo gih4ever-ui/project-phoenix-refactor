@@ -246,7 +246,7 @@ export const UserManager = () => {
                   </div>
                   {u.role !== "admin" && (
                     <div className="mt-4 flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => rejectUser(u.id)} className="text-destructive">
+                      <Button variant="outline" onClick={() => rejectUser(u.id)} className="text-destructive text-sm px-3 py-1.5">
                         Revogar Acesso
                       </Button>
                     </div>
