@@ -8,6 +8,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
+  permissions: string[];
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   role: null,
+  permissions: [],
   loading: true,
   signOut: async () => {},
 });
@@ -26,35 +28,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchRole = async (userId: string) => {
-    const { data } = await supabase.rpc("get_user_role", { _user_id: userId });
-    setRole((data as AppRole) || "pending");
+  const fetchRoleAndPermissions = async (userId: string) => {
+    const [{ data: roleData }, { data: permsData }] = await Promise.all([
+      supabase.rpc("get_user_role", { _user_id: userId }),
+      supabase.rpc("get_user_permissions", { _user_id: userId }),
+    ]);
+    setRole((roleData as AppRole) || "pending");
+    setPermissions((permsData as string[]) || []);
   };
 
   useEffect(() => {
-    // Set up auth listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          // Use setTimeout to avoid Supabase deadlock
-          setTimeout(() => fetchRole(session.user.id), 0);
+          setTimeout(() => fetchRoleAndPermissions(session.user.id), 0);
         } else {
           setRole(null);
+          setPermissions([]);
         }
         setLoading(false);
       }
     );
 
-    // THEN check existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchRole(session.user.id);
+        fetchRoleAndPermissions(session.user.id);
       }
       setLoading(false);
     });
@@ -67,10 +72,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setSession(null);
     setRole(null);
+    setPermissions([]);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, permissions, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

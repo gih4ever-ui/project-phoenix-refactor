@@ -1,13 +1,13 @@
 import { useState } from "react";
 import {
-  LayoutDashboard, Package, Truck, Store, Users, Wallet, Tag, Box, Grid, Gift, LogOut, ArrowDown, ArrowUp, Menu, ShoppingCart, Percent, X
+  LayoutDashboard, Package, Truck, Store, Users, Wallet, Tag, Box, Grid, Gift, LogOut, ArrowDown, ArrowUp, Menu, ShoppingCart, Percent, X, Shield
 } from "lucide-react";
 import { useLocalData } from "@/hooks/useLocalData";
 import { useAuth } from "@/hooks/useAuth";
 import { ViewType } from "@/types/fluctus";
 import {
   AuthScreen, PendingApproval, Dashboard, SupplierManager, MaterialManager, ExtrasManager,
-  FixedCosts, LogisticsFund, ClientManager, Catalog, ProductPricing, KitManager, ShoppingManager, PromotionsManager
+  FixedCosts, LogisticsFund, ClientManager, Catalog, ProductPricing, KitManager, ShoppingManager, PromotionsManager, UserManager
 } from "@/components/fluctus/screens";
 
 const menuItems = [
@@ -29,8 +29,17 @@ const Index = () => {
   const [view, setView] = useState<ViewType>("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, role, loading, signOut } = useAuth();
+  const { user, role, permissions, loading, signOut } = useAuth();
   const db = useLocalData();
+
+  const filteredMenuItems = menuItems.filter((item) => {
+    if (role === "admin") return true;
+    return permissions.includes(item.id);
+  });
+
+  const adminMenuItems = role === "admin"
+    ? [{ id: "users" as ViewType, label: "Usuários", icon: Shield }]
+    : [];
 
   if (loading) {
     return (
@@ -75,6 +84,8 @@ const Index = () => {
         return <ClientManager db={db} />;
       case "promotions":
         return <PromotionsManager db={db} />;
+      case "users":
+        return <UserManager />;
       case "financial":
         return <FixedCosts db={db} />;
       case "logistics":
@@ -110,7 +121,7 @@ const Index = () => {
           </button>
         </div>
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto custom-scrollbar">
-          {menuItems.map((item) => (
+          {[...filteredMenuItems, ...adminMenuItems].map((item) => (
             <button
               key={item.id}
               onClick={() => setView(item.id)}
@@ -172,7 +183,7 @@ const Index = () => {
                 </button>
               </div>
               <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-                {menuItems.map((item) => (
+                {[...filteredMenuItems, ...adminMenuItems].map((item) => (
                   <button
                     key={item.id}
                     onClick={() => handleMobileNav(item.id)}

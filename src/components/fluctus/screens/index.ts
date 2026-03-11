@@ -13,3 +13,4 @@ export { ProductPricing } from './ProductPricing';
 export { KitManager } from './KitManager';
 export { default as ShoppingManager } from './ShoppingManager';
 export { PromotionsManager } from './PromotionsManager';
+export { UserManager } from './UserManager';
