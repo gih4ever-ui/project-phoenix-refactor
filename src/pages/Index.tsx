@@ -121,7 +121,7 @@ const Index = () => {
           </button>
         </div>
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto custom-scrollbar">
-          {menuItems.map((item) => (
+          {[...filteredMenuItems, ...adminMenuItems].map((item) => (
             <button
               key={item.id}
               onClick={() => setView(item.id)}
