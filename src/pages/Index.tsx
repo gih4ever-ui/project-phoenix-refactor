@@ -1,13 +1,13 @@
 import { useState } from "react";
 import {
-  LayoutDashboard, Package, Truck, Store, Users, Wallet, Tag, Box, Grid, Gift, LogOut, ArrowDown, ArrowUp, Menu, ShoppingCart, Percent, X
+  LayoutDashboard, Package, Truck, Store, Users, Wallet, Tag, Box, Grid, Gift, LogOut, ArrowDown, ArrowUp, Menu, ShoppingCart, Percent, X, Shield
 } from "lucide-react";
 import { useLocalData } from "@/hooks/useLocalData";
 import { useAuth } from "@/hooks/useAuth";
 import { ViewType } from "@/types/fluctus";
 import {
   AuthScreen, PendingApproval, Dashboard, SupplierManager, MaterialManager, ExtrasManager,
-  FixedCosts, LogisticsFund, ClientManager, Catalog, ProductPricing, KitManager, ShoppingManager, PromotionsManager
+  FixedCosts, LogisticsFund, ClientManager, Catalog, ProductPricing, KitManager, ShoppingManager, PromotionsManager, UserManager
 } from "@/components/fluctus/screens";
 
 const menuItems = [
