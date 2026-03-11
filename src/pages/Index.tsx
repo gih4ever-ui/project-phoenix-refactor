@@ -29,8 +29,17 @@ const Index = () => {
   const [view, setView] = useState<ViewType>("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, role, loading, signOut } = useAuth();
+  const { user, role, permissions, loading, signOut } = useAuth();
   const db = useLocalData();
+
+  const filteredMenuItems = menuItems.filter((item) => {
+    if (role === "admin") return true;
+    return permissions.includes(item.id);
+  });
+
+  const adminMenuItems = role === "admin"
+    ? [{ id: "users" as ViewType, label: "Usuários", icon: Shield }]
+    : [];
 
   if (loading) {
     return (
