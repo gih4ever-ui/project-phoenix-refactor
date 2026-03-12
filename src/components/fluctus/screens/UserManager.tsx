@@ -408,10 +408,10 @@ export const UserManager = () => {
       {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!deleteUser}
-        onClose={() => setDeleteUser(null)}
+        onOpenChange={(open) => !open && setDeleteUser(null)}
         onConfirm={handleDeleteUser}
         title="Remover Usuário"
-        message={`Tem certeza que deseja remover ${deleteUser?.full_name || deleteUser?.email}? Esta ação não pode ser desfeita.`}
+        description={`Tem certeza que deseja remover ${deleteUser?.full_name || deleteUser?.email}? Esta ação não pode ser desfeita.`}
       />
     </div>
   );
