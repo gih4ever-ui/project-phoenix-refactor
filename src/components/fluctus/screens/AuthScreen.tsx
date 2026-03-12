@@ -9,11 +9,13 @@ type AuthMode = "login" | "signup" | "forgot";
 
 export const AuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
   const { toast } = useToast();
 
   const handleEmailAuth = async (e: React.FormEvent) => {
