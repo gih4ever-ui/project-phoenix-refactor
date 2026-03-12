@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { TrendingUp, Mail, Lock, User, Loader2 } from "lucide-react";
+import { TrendingUp, Mail, Lock, User, Loader2, ArrowLeft } from "lucide-react";
 import { Card, Button } from "../ui";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { useToast } from "@/hooks/use-toast";
+
+type AuthMode = "login" | "signup" | "forgot";
 
 export const AuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
