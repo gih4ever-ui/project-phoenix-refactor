@@ -23,10 +23,10 @@ export const AuthScreen = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (authMode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-      } else {
+      } else if (authMode === "signup") {
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -41,6 +41,31 @@ export const AuthScreen = () => {
           description: "Verifique seu email para confirmar a conta. Após confirmação, um administrador precisará aprovar seu acesso.",
         });
       }
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setForgotSent(true);
+      toast({
+        title: "Email enviado!",
+        description: "Verifique sua caixa de entrada para redefinir sua senha.",
+      });
     } catch (error: any) {
       toast({
         title: "Erro",
