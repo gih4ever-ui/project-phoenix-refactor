@@ -407,7 +407,7 @@ export const UserManager = () => {
 
       {/* Delete Confirmation */}
       <ConfirmDialog
-        isOpen={!!deleteUser}
+        open={!!deleteUser}
         onClose={() => setDeleteUser(null)}
         onConfirm={handleDeleteUser}
         title="Remover Usuário"
