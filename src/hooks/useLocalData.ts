@@ -98,8 +98,8 @@ export const useLocalData = (initialData?: FluctusData) => {
       }
 
       const userId = session.user.id;
-      const { data: cloudRow } = await supabase
-        .from('user_data')
+      const { data: cloudRow } = await (supabase
+        .from('user_data') as any)
         .select('data')
         .eq('user_id', userId)
         .maybeSingle();
