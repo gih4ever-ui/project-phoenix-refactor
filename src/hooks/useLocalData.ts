@@ -155,9 +155,9 @@ export const useLocalData = (initialData?: FluctusData) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
 
-      const { error } = await supabase.from('user_data').upsert({
+      const { error } = await (supabase.from('user_data') as any).upsert({
         user_id: session.user.id,
-        data: data as unknown as Record<string, unknown>,
+        data: data,
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
 
