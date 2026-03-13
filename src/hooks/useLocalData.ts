@@ -117,9 +117,9 @@ export const useLocalData = (initialData?: FluctusData) => {
           localData.suppliers.length > 0 || localData.clients.length > 0 || localData.extras.length > 0;
         
         if (hasLocalData) {
-          await supabase.from('user_data').upsert({
+          await (supabase.from('user_data') as any).upsert({
             user_id: userId,
-            data: localData as unknown as Record<string, unknown>,
+            data: localData,
             updated_at: new Date().toISOString()
           }, { onConflict: 'user_id' });
           console.log('Dados do localStorage migrados para a nuvem!');
