@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { FluctusData, FixedCosts, LogisticsFund, LogisticsFundDeposit } from '@/types/fluctus';
+import { supabase } from '@/integrations/supabase/client';
 
 const STORAGE_KEY = 'fluctus-data';
 
@@ -83,19 +84,91 @@ const loadFromStorage = (): FluctusData => {
 
 export const useLocalData = (initialData?: FluctusData) => {
   const [data, setData] = useState<FluctusData>(() => initialData || loadFromStorage());
+  const [cloudReady, setCloudReady] = useState(false);
   const isFirstRender = useRef(true);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-save to localStorage on every change
+  // Load data from cloud on mount
+  useEffect(() => {
+    const loadFromCloud = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setCloudReady(true);
+        return;
+      }
+
+      const userId = session.user.id;
+      const { data: cloudRow } = await supabase
+        .from('user_data')
+        .select('data')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (cloudRow?.data) {
+        // Cloud has data — use it
+        const cloudData = migrateData(cloudRow.data as Partial<FluctusData>);
+        setData(cloudData);
+        // Also update localStorage as cache
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
+      } else {
+        // No cloud data — migrate localStorage to cloud
+        const localData = loadFromStorage();
+        const hasLocalData = localData.materials.length > 0 || localData.products.length > 0 || 
+          localData.suppliers.length > 0 || localData.clients.length > 0 || localData.extras.length > 0;
+        
+        if (hasLocalData) {
+          await supabase.from('user_data').upsert({
+            user_id: userId,
+            data: localData as unknown as Record<string, unknown>,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id' });
+          console.log('Dados do localStorage migrados para a nuvem!');
+        }
+      }
+
+      setCloudReady(true);
+    };
+
+    loadFromCloud();
+  }, []);
+
+  // Save to cloud (debounced) and localStorage on changes
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
+
+    // Always save to localStorage immediately (cache)
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
       console.error('Erro ao salvar no localStorage:', e);
     }
+
+    // Debounce cloud save to avoid too many requests
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+    }
+
+    saveTimer.current = setTimeout(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { error } = await supabase.from('user_data').upsert({
+        user_id: session.user.id,
+        data: data as unknown as Record<string, unknown>,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+
+      if (error) {
+        console.error('Erro ao salvar na nuvem:', error);
+      }
+    }, 1500);
+
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
   }, [data]);
 
   const add = (collection: keyof Omit<FluctusData, 'fixedCosts' | 'expenses'>, item: any) => {
@@ -385,7 +458,7 @@ export const useLocalData = (initialData?: FluctusData) => {
     reader.readAsText(file);
   };
 
-  return { data, add, update, remove, updateFixedCosts, addLogisticsDeposit, removeLogisticsDeposit, recalculateLogisticsFund, confirmLogisticsExpense, unconfirmLogisticsExpense, seed, backup, restore };
+  return { data, cloudReady, add, update, remove, updateFixedCosts, addLogisticsDeposit, removeLogisticsDeposit, recalculateLogisticsFund, confirmLogisticsExpense, unconfirmLogisticsExpense, seed, backup, restore };
 };
 
 export type DatabaseHook = ReturnType<typeof useLocalData>;
