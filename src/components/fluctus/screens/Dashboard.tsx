@@ -80,7 +80,8 @@ export const Dashboard = ({ data, syncStatus, seed, backup, restore }: Dashboard
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap justify-between items-center gap-3">
         <h2 className="text-2xl font-bold text-foreground">Visão Geral</h2>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          <SyncIndicator status={syncStatus} />
           <Button onClick={backup} variant="outline" className="text-xs gap-1">
             <Download size={14} /> Backup
           </Button>
