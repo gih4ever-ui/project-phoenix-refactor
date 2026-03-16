@@ -476,7 +476,7 @@ export const useLocalData = (initialData?: FluctusData) => {
     reader.readAsText(file);
   };
 
-  return { data, cloudReady, add, update, remove, updateFixedCosts, addLogisticsDeposit, removeLogisticsDeposit, recalculateLogisticsFund, confirmLogisticsExpense, unconfirmLogisticsExpense, seed, backup, restore };
+  return { data, cloudReady, syncStatus, add, update, remove, updateFixedCosts, addLogisticsDeposit, removeLogisticsDeposit, recalculateLogisticsFund, confirmLogisticsExpense, unconfirmLogisticsExpense, seed, backup, restore };
 };
 
 export type DatabaseHook = ReturnType<typeof useLocalData>;
