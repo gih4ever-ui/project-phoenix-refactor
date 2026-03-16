@@ -1,17 +1,18 @@
 import { useMemo, useRef } from "react";
 import { Cake, Wand2, Download, Upload, Truck, AlertTriangle, TrendingUp, Calculator, ShoppingCart, Tag, Package } from "lucide-react";
-import { Card, Button, Badge } from "../ui";
+import { Card, Button, Badge, SyncIndicator } from "../ui";
 import { safeFixed } from "@/lib/utils";
 import { FluctusData } from "@/types/fluctus";
 
 interface DashboardProps {
   data: FluctusData;
+  syncStatus: 'idle' | 'saving' | 'saved' | 'error';
   seed: () => void;
   backup: () => void;
   restore: (file: File) => void;
 }
 
-export const Dashboard = ({ data, seed, backup, restore }: DashboardProps) => {
+export const Dashboard = ({ data, syncStatus, seed, backup, restore }: DashboardProps) => {
   const { products, shoppingTrips, clients } = data;
   const totalSpent = (shoppingTrips || []).reduce((acc, trip) => acc + (trip.grandTotal || 0), 0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,7 +80,8 @@ export const Dashboard = ({ data, seed, backup, restore }: DashboardProps) => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap justify-between items-center gap-3">
         <h2 className="text-2xl font-bold text-foreground">Visão Geral</h2>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          <SyncIndicator status={syncStatus} />
           <Button onClick={backup} variant="outline" className="text-xs gap-1">
             <Download size={14} /> Backup
           </Button>

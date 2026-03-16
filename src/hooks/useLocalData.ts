@@ -85,8 +85,10 @@ const loadFromStorage = (): FluctusData => {
 export const useLocalData = (initialData?: FluctusData) => {
   const [data, setData] = useState<FluctusData>(() => initialData || loadFromStorage());
   const [cloudReady, setCloudReady] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const isFirstRender = useRef(true);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load data from cloud on mount
   useEffect(() => {
@@ -151,18 +153,34 @@ export const useLocalData = (initialData?: FluctusData) => {
       clearTimeout(saveTimer.current);
     }
 
+    setSyncStatus('saving');
+
     saveTimer.current = setTimeout(async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      if (!session?.user) {
+        setSyncStatus('idle');
+        return;
+      }
 
-      const { error } = await (supabase.from('user_data') as any).upsert({
-        user_id: session.user.id,
-        data: data,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
+      try {
+        const { error } = await (supabase.from('user_data') as any).upsert({
+          user_id: session.user.id,
+          data: data,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
 
-      if (error) {
-        console.error('Erro ao salvar na nuvem:', error);
+        if (error) {
+          console.error('Erro ao salvar na nuvem:', error);
+          setSyncStatus('error');
+        } else {
+          setSyncStatus('saved');
+          // Clear 'saved' status after 2 seconds
+          if (statusTimer.current) clearTimeout(statusTimer.current);
+          statusTimer.current = setTimeout(() => setSyncStatus('idle'), 2000);
+        }
+      } catch (err) {
+        console.error('Sync error:', err);
+        setSyncStatus('error');
       }
     }, 1500);
 
@@ -458,7 +476,7 @@ export const useLocalData = (initialData?: FluctusData) => {
     reader.readAsText(file);
   };
 
-  return { data, cloudReady, add, update, remove, updateFixedCosts, addLogisticsDeposit, removeLogisticsDeposit, recalculateLogisticsFund, confirmLogisticsExpense, unconfirmLogisticsExpense, seed, backup, restore };
+  return { data, cloudReady, syncStatus, add, update, remove, updateFixedCosts, addLogisticsDeposit, removeLogisticsDeposit, recalculateLogisticsFund, confirmLogisticsExpense, unconfirmLogisticsExpense, seed, backup, restore };
 };
 
 export type DatabaseHook = ReturnType<typeof useLocalData>;
