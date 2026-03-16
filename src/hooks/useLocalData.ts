@@ -85,8 +85,10 @@ const loadFromStorage = (): FluctusData => {
 export const useLocalData = (initialData?: FluctusData) => {
   const [data, setData] = useState<FluctusData>(() => initialData || loadFromStorage());
   const [cloudReady, setCloudReady] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const isFirstRender = useRef(true);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load data from cloud on mount
   useEffect(() => {
