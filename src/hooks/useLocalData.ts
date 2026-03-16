@@ -153,18 +153,34 @@ export const useLocalData = (initialData?: FluctusData) => {
       clearTimeout(saveTimer.current);
     }
 
+    setSyncStatus('saving');
+
     saveTimer.current = setTimeout(async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      if (!session?.user) {
+        setSyncStatus('idle');
+        return;
+      }
 
-      const { error } = await (supabase.from('user_data') as any).upsert({
-        user_id: session.user.id,
-        data: data,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
+      try {
+        const { error } = await (supabase.from('user_data') as any).upsert({
+          user_id: session.user.id,
+          data: data,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
 
-      if (error) {
-        console.error('Erro ao salvar na nuvem:', error);
+        if (error) {
+          console.error('Erro ao salvar na nuvem:', error);
+          setSyncStatus('error');
+        } else {
+          setSyncStatus('saved');
+          // Clear 'saved' status after 2 seconds
+          if (statusTimer.current) clearTimeout(statusTimer.current);
+          statusTimer.current = setTimeout(() => setSyncStatus('idle'), 2000);
+        }
+      } catch (err) {
+        console.error('Sync error:', err);
+        setSyncStatus('error');
       }
     }, 1500);
 
