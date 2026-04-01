@@ -319,6 +319,7 @@ export interface FluctusData {
   shoppingTrips: ShoppingTrip[];
   logisticsFund: LogisticsFund;
   promotions: Promotion[];
+  stockMovements: StockMovement[];
 }
 
 export type ViewType = 
