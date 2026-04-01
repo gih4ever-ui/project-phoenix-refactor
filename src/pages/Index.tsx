@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  LayoutDashboard, Package, Truck, Store, Users, Wallet, Tag, Box, Grid, Gift, LogOut, ArrowDown, ArrowUp, Menu, ShoppingCart, Percent, X, Shield
+  LayoutDashboard, Package, Truck, Store, Users, Wallet, Tag, Box, Grid, Gift, LogOut, ArrowDown, ArrowUp, Menu, ShoppingCart, Percent, X, Shield, BarChart3
 } from "lucide-react";
 import { useLocalData } from "@/hooks/useLocalData";
 import { useAuth } from "@/hooks/useAuth";
