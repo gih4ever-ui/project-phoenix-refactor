@@ -16,7 +16,8 @@ const INITIAL_DATA: FluctusData = {
   kits: [],
   shoppingTrips: [],
   logisticsFund: { deposits: [], totalDeposited: 0, totalSpent: 0, balance: 0 },
-  promotions: []
+  promotions: [],
+  stockMovements: []
 };
 
 // Migration function to ensure compatibility with older backups
@@ -33,7 +34,8 @@ const migrateData = (parsed: Partial<FluctusData>): FluctusData => {
     kits: parsed.kits || [],
     shoppingTrips: parsed.shoppingTrips || [],
     logisticsFund: parsed.logisticsFund || { deposits: [], totalDeposited: 0, totalSpent: 0, balance: 0 },
-    promotions: parsed.promotions || []
+    promotions: parsed.promotions || [],
+    stockMovements: parsed.stockMovements || []
   };
 
   if (migrated.logisticsFund) {
@@ -443,7 +445,8 @@ export const useLocalData = (initialData?: FluctusData) => {
         totalSpent: 71.50, 
         balance: -21.50 
       },
-      promotions: []
+      promotions: [],
+      stockMovements: []
     };
 
     setData(prev => ({ ...prev, ...newData }));

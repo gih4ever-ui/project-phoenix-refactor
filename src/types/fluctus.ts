@@ -280,6 +280,18 @@ export interface FixedCosts {
   items: FixedCostItem[];
 }
 
+export type StockMovementType = 'production' | 'sale' | 'gift' | 'personal' | 'adjustment';
+
+export interface StockMovement {
+  id: number;
+  productId: number;
+  date: string;
+  type: StockMovementType;
+  quantity: number;
+  unitValue: number; // Real value (for sales: actual price charged; for production: cost)
+  description?: string;
+}
+
 export interface LogisticsFundDeposit {
   id: number;
   date: string;
@@ -307,6 +319,7 @@ export interface FluctusData {
   shoppingTrips: ShoppingTrip[];
   logisticsFund: LogisticsFund;
   promotions: Promotion[];
+  stockMovements: StockMovement[];
 }
 
 export type ViewType = 
@@ -323,9 +336,10 @@ export type ViewType =
   | 'financial'
   | 'logistics'
   | 'promotions'
+  | 'stock'
   | 'users';
 
 export type ScreenPermission = 
   | 'dashboard' | 'catalog' | 'shopping' | 'suppliers' | 'materials' 
   | 'extras' | 'products' | 'kits' | 'clients' | 'promotions' 
-  | 'financial' | 'logistics';
+  | 'financial' | 'logistics' | 'stock';
