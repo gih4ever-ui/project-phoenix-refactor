@@ -21,6 +21,7 @@ const menuItems = [
   { id: "kits" as ViewType, label: "Kits", icon: Box },
   { id: "clients" as ViewType, label: "Clientes", icon: Users },
   { id: "promotions" as ViewType, label: "Promoções", icon: Percent },
+  { id: "stock" as ViewType, label: "Produção & Vendas", icon: BarChart3 },
   { id: "financial" as ViewType, label: "Custos Fixos", icon: Wallet },
   { id: "logistics" as ViewType, label: "Fundo Logística", icon: Truck },
 ];
