@@ -445,7 +445,8 @@ export const useLocalData = (initialData?: FluctusData) => {
         totalSpent: 71.50, 
         balance: -21.50 
       },
-      promotions: []
+      promotions: [],
+      stockMovements: []
     };
 
     setData(prev => ({ ...prev, ...newData }));
