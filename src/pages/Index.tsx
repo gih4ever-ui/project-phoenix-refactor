@@ -85,6 +85,8 @@ const Index = () => {
         return <ClientManager db={db} />;
       case "promotions":
         return <PromotionsManager db={db} />;
+      case "stock":
+        return <StockManager db={db} />;
       case "users":
         return <UserManager />;
       case "financial":
