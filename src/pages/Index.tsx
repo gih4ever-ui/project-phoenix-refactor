@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ViewType } from "@/types/fluctus";
 import {
   AuthScreen, PendingApproval, Dashboard, SupplierManager, MaterialManager, ExtrasManager,
-  FixedCosts, LogisticsFund, ClientManager, Catalog, ProductPricing, KitManager, ShoppingManager, PromotionsManager, UserManager
+  FixedCosts, LogisticsFund, ClientManager, Catalog, ProductPricing, KitManager, ShoppingManager, PromotionsManager, UserManager, StockManager
 } from "@/components/fluctus/screens";
 
 const menuItems = [
