@@ -436,11 +436,12 @@ export const StockManager = ({ db }: StockManagerProps) => {
       </Card>
 
       <ConfirmDialog
-        isOpen={deleteId !== null}
-        onClose={() => setDeleteId(null)}
+        open={deleteId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteId(null); }}
         onConfirm={handleDelete}
         title="Excluir Movimentação"
-        message="Tem certeza que deseja excluir esta movimentação?"
+        description="Tem certeza que deseja excluir esta movimentação?"
+        variant="destructive"
       />
     </div>
   );
