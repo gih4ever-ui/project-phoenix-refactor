@@ -16,7 +16,8 @@ const INITIAL_DATA: FluctusData = {
   kits: [],
   shoppingTrips: [],
   logisticsFund: { deposits: [], totalDeposited: 0, totalSpent: 0, balance: 0 },
-  promotions: []
+  promotions: [],
+  stockMovements: []
 };
 
 // Migration function to ensure compatibility with older backups
