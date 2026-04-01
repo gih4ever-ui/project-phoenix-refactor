@@ -336,6 +336,7 @@ export type ViewType =
   | 'financial'
   | 'logistics'
   | 'promotions'
+  | 'stock'
   | 'users';
 
 export type ScreenPermission = 
