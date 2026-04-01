@@ -341,4 +341,4 @@ export type ViewType =
 export type ScreenPermission = 
   | 'dashboard' | 'catalog' | 'shopping' | 'suppliers' | 'materials' 
   | 'extras' | 'products' | 'kits' | 'clients' | 'promotions' 
-  | 'financial' | 'logistics';
+  | 'financial' | 'logistics' | 'stock';
