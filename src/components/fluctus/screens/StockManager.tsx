@@ -405,6 +405,11 @@ export const StockManager = ({ db }: StockManagerProps) => {
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{new Date(m.date).toLocaleDateString('pt-BR')}</span>
                         <Badge color={m.type === 'sale' ? 'blue' : m.type === 'production' ? 'green' : m.type === 'gift' ? 'pink' : 'gray'} className="text-[10px]">
+                          {cfg.label}
+                        </Badge>
+                        {isDiscount && (
+                          <Badge color="orange" className="text-[10px]">Promocional</Badge>
+                        )}
                         {m.description && <span>• {m.description}</span>}
                       </div>
                     </div>
