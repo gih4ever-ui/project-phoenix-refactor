@@ -280,6 +280,18 @@ export interface FixedCosts {
   items: FixedCostItem[];
 }
 
+export type StockMovementType = 'production' | 'sale' | 'gift' | 'personal' | 'adjustment';
+
+export interface StockMovement {
+  id: number;
+  productId: number;
+  date: string;
+  type: StockMovementType;
+  quantity: number;
+  unitValue: number; // Real value (for sales: actual price charged; for production: cost)
+  description?: string;
+}
+
 export interface LogisticsFundDeposit {
   id: number;
   date: string;
