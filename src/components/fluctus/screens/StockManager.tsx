@@ -36,16 +36,12 @@ export const StockManager = ({ db }: StockManagerProps) => {
   const [formDesc, setFormDesc] = useState('');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // Auto-fill value when product or type changes
+  // Auto-fill value from product registration
   const handleProductChange = (pid: number) => {
     setFormProductId(pid);
     const product = products.find(p => p.id === pid);
     if (product) {
-      if (formType === 'sale') {
-        setFormValue(product.finalPrice || 0);
-      } else {
-        setFormValue(product.totalCost || 0);
-      }
+      setFormValue(formType === 'sale' ? (product.finalPrice || 0) : (product.totalCost || 0));
     }
   };
 
