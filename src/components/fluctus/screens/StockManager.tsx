@@ -182,7 +182,7 @@ export const StockManager = ({ db }: StockManagerProps) => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="border-l-4 border-l-primary">
           <p className="text-muted-foreground text-sm font-medium flex items-center gap-1"><Package size={14} /> Peças Disponíveis</p>
           <p className="text-3xl font-bold text-foreground">{globalSummary.totalAvailable}</p>
@@ -206,6 +206,13 @@ export const StockManager = ({ db }: StockManagerProps) => {
           {globalSummary.totalLost > 0 && (
             <p className="text-xs text-muted-foreground mt-1">R$ {safeFixed(globalSummary.totalLost)} em perdas</p>
           )}
+        </Card>
+        <Card className="border-l-4 border-l-accent">
+          <p className="text-muted-foreground text-sm font-medium flex items-center gap-1"><TrendingUp size={14} /> Lucro Esperado</p>
+          <p className={`text-2xl font-bold ${globalSummary.totalExpectedProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+            R$ {safeFixed(globalSummary.totalExpectedProfit)}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">se vender tudo a preço cheio</p>
         </Card>
       </div>
 
