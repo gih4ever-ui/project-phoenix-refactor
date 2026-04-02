@@ -130,7 +130,7 @@ export const StockManager = ({ db }: StockManagerProps) => {
   }, [movements, products]);
 
   const globalSummary = useMemo(() => {
-    let totalAvailable = 0, totalInvested = 0, totalRevenue = 0, totalLost = 0, totalFullPriceRevenue = 0;
+    let totalAvailable = 0, totalInvested = 0, totalRevenue = 0, totalLost = 0, totalFullPriceRevenue = 0, totalExpectedProfit = 0;
     
     for (const [pid, s] of productSummaries) {
       const product = products.find(p => p.id === pid);
@@ -139,16 +139,18 @@ export const StockManager = ({ db }: StockManagerProps) => {
       totalInvested += s.totalCostInvested;
       totalRevenue += s.totalRevenue;
       totalFullPriceRevenue += s.totalFullPriceRevenue;
-      // Losses = cost of gifted + personal items
-      const unitCost = s.produced > 0 ? s.totalCostInvested / s.produced : (product?.totalCost || 0);
+      const unitCost = product?.totalCost || 0;
       totalLost += (s.gifted + s.personal) * unitCost;
+      // Expected profit: available pieces × (finalPrice - totalCost) from product registration
+      if (product && available > 0) {
+        totalExpectedProfit += available * ((product.finalPrice || 0) - (product.totalCost || 0));
+      }
     }
 
-    const totalProductionCost = totalRevenue > 0 ? totalInvested : 0;
-    // Real profit: revenue minus cost of sold items (proportional)
     let totalCostOfSold = 0;
     for (const [pid, s] of productSummaries) {
-      const unitCost = s.produced > 0 ? s.totalCostInvested / s.produced : 0;
+      const product = products.find(p => p.id === pid);
+      const unitCost = product?.totalCost || 0;
       totalCostOfSold += s.sold * unitCost;
     }
 
@@ -159,6 +161,7 @@ export const StockManager = ({ db }: StockManagerProps) => {
       totalFullPriceRevenue,
       totalLost,
       totalProfit: totalRevenue - totalCostOfSold,
+      totalExpectedProfit,
       totalDiscount: totalFullPriceRevenue - totalRevenue,
     };
   }, [productSummaries, products]);
