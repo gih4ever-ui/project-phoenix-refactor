@@ -325,16 +325,21 @@ export const StockManager = ({ db }: StockManagerProps) => {
                   <th className="pb-2 pr-4 text-center">Produzido</th>
                   <th className="pb-2 pr-4 text-center">Vendido</th>
                   <th className="pb-2 pr-4 text-center">Perdas</th>
-                  <th className="pb-2 pr-4 text-right">Investido</th>
+                  <th className="pb-2 pr-4 text-right">Custo Un.</th>
+                  <th className="pb-2 pr-4 text-right">Preço Un.</th>
                   <th className="pb-2 pr-4 text-right">Receita</th>
-                  <th className="pb-2 text-right">Lucro</th>
+                  <th className="pb-2 pr-4 text-right">Lucro Real</th>
+                  <th className="pb-2 text-right">Lucro Esperado</th>
                 </tr>
               </thead>
               <tbody>
                 {Array.from(productSummaries.entries()).map(([pid, s]) => {
+                  const product = products.find(p => p.id === pid);
                   const available = s.produced - s.sold - s.gifted - s.personal + s.adjusted;
-                  const unitCost = s.produced > 0 ? s.totalCostInvested / s.produced : 0;
+                  const unitCost = product?.totalCost || 0;
+                  const unitPrice = product?.finalPrice || 0;
                   const profit = s.totalRevenue - (s.sold * unitCost);
+                  const expectedProfit = available > 0 ? available * (unitPrice - unitCost) : 0;
                   return (
                     <tr key={pid} className="border-b border-border/50 hover:bg-muted/50">
                       <td className="py-2 pr-4 font-medium text-foreground">{getProductName(pid)}</td>
@@ -342,10 +347,14 @@ export const StockManager = ({ db }: StockManagerProps) => {
                       <td className="py-2 pr-4 text-center text-success">{s.produced}</td>
                       <td className="py-2 pr-4 text-center text-primary">{s.sold}</td>
                       <td className="py-2 pr-4 text-center text-warning">{s.gifted + s.personal}</td>
-                      <td className="py-2 pr-4 text-right text-muted-foreground">R$ {safeFixed(s.totalCostInvested)}</td>
+                      <td className="py-2 pr-4 text-right text-muted-foreground">R$ {safeFixed(unitCost)}</td>
+                      <td className="py-2 pr-4 text-right text-foreground">R$ {safeFixed(unitPrice)}</td>
                       <td className="py-2 pr-4 text-right text-success">R$ {safeFixed(s.totalRevenue)}</td>
-                      <td className={`py-2 text-right font-bold ${profit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      <td className={`py-2 pr-4 text-right font-bold ${profit >= 0 ? 'text-success' : 'text-destructive'}`}>
                         R$ {safeFixed(profit)}
+                      </td>
+                      <td className={`py-2 text-right font-bold ${expectedProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        R$ {safeFixed(expectedProfit)}
                       </td>
                     </tr>
                   );
