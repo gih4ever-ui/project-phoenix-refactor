@@ -36,16 +36,12 @@ export const StockManager = ({ db }: StockManagerProps) => {
   const [formDesc, setFormDesc] = useState('');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // Auto-fill value when product or type changes
+  // Auto-fill value from product registration
   const handleProductChange = (pid: number) => {
     setFormProductId(pid);
     const product = products.find(p => p.id === pid);
     if (product) {
-      if (formType === 'sale') {
-        setFormValue(product.finalPrice || 0);
-      } else {
-        setFormValue(product.totalCost || 0);
-      }
+      setFormValue(formType === 'sale' ? (product.finalPrice || 0) : (product.totalCost || 0));
     }
   };
 
@@ -130,7 +126,7 @@ export const StockManager = ({ db }: StockManagerProps) => {
   }, [movements, products]);
 
   const globalSummary = useMemo(() => {
-    let totalAvailable = 0, totalInvested = 0, totalRevenue = 0, totalLost = 0, totalFullPriceRevenue = 0;
+    let totalAvailable = 0, totalInvested = 0, totalRevenue = 0, totalLost = 0, totalFullPriceRevenue = 0, totalExpectedProfit = 0;
     
     for (const [pid, s] of productSummaries) {
       const product = products.find(p => p.id === pid);
@@ -139,16 +135,18 @@ export const StockManager = ({ db }: StockManagerProps) => {
       totalInvested += s.totalCostInvested;
       totalRevenue += s.totalRevenue;
       totalFullPriceRevenue += s.totalFullPriceRevenue;
-      // Losses = cost of gifted + personal items
-      const unitCost = s.produced > 0 ? s.totalCostInvested / s.produced : (product?.totalCost || 0);
+      const unitCost = product?.totalCost || 0;
       totalLost += (s.gifted + s.personal) * unitCost;
+      // Expected profit: available pieces × (finalPrice - totalCost) from product registration
+      if (product && available > 0) {
+        totalExpectedProfit += available * ((product.finalPrice || 0) - (product.totalCost || 0));
+      }
     }
 
-    const totalProductionCost = totalRevenue > 0 ? totalInvested : 0;
-    // Real profit: revenue minus cost of sold items (proportional)
     let totalCostOfSold = 0;
     for (const [pid, s] of productSummaries) {
-      const unitCost = s.produced > 0 ? s.totalCostInvested / s.produced : 0;
+      const product = products.find(p => p.id === pid);
+      const unitCost = product?.totalCost || 0;
       totalCostOfSold += s.sold * unitCost;
     }
 
@@ -159,6 +157,7 @@ export const StockManager = ({ db }: StockManagerProps) => {
       totalFullPriceRevenue,
       totalLost,
       totalProfit: totalRevenue - totalCostOfSold,
+      totalExpectedProfit,
       totalDiscount: totalFullPriceRevenue - totalRevenue,
     };
   }, [productSummaries, products]);
@@ -183,7 +182,7 @@ export const StockManager = ({ db }: StockManagerProps) => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="border-l-4 border-l-primary">
           <p className="text-muted-foreground text-sm font-medium flex items-center gap-1"><Package size={14} /> Peças Disponíveis</p>
           <p className="text-3xl font-bold text-foreground">{globalSummary.totalAvailable}</p>
@@ -207,6 +206,13 @@ export const StockManager = ({ db }: StockManagerProps) => {
           {globalSummary.totalLost > 0 && (
             <p className="text-xs text-muted-foreground mt-1">R$ {safeFixed(globalSummary.totalLost)} em perdas</p>
           )}
+        </Card>
+        <Card className="border-l-4 border-l-accent">
+          <p className="text-muted-foreground text-sm font-medium flex items-center gap-1"><TrendingUp size={14} /> Lucro Esperado</p>
+          <p className={`text-2xl font-bold ${globalSummary.totalExpectedProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+            R$ {safeFixed(globalSummary.totalExpectedProfit)}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">se vender tudo a preço cheio</p>
         </Card>
       </div>
 
@@ -319,16 +325,21 @@ export const StockManager = ({ db }: StockManagerProps) => {
                   <th className="pb-2 pr-4 text-center">Produzido</th>
                   <th className="pb-2 pr-4 text-center">Vendido</th>
                   <th className="pb-2 pr-4 text-center">Perdas</th>
-                  <th className="pb-2 pr-4 text-right">Investido</th>
+                  <th className="pb-2 pr-4 text-right">Custo Un.</th>
+                  <th className="pb-2 pr-4 text-right">Preço Un.</th>
                   <th className="pb-2 pr-4 text-right">Receita</th>
-                  <th className="pb-2 text-right">Lucro</th>
+                  <th className="pb-2 pr-4 text-right">Lucro Real</th>
+                  <th className="pb-2 text-right">Lucro Esperado</th>
                 </tr>
               </thead>
               <tbody>
                 {Array.from(productSummaries.entries()).map(([pid, s]) => {
+                  const product = products.find(p => p.id === pid);
                   const available = s.produced - s.sold - s.gifted - s.personal + s.adjusted;
-                  const unitCost = s.produced > 0 ? s.totalCostInvested / s.produced : 0;
+                  const unitCost = product?.totalCost || 0;
+                  const unitPrice = product?.finalPrice || 0;
                   const profit = s.totalRevenue - (s.sold * unitCost);
+                  const expectedProfit = available > 0 ? available * (unitPrice - unitCost) : 0;
                   return (
                     <tr key={pid} className="border-b border-border/50 hover:bg-muted/50">
                       <td className="py-2 pr-4 font-medium text-foreground">{getProductName(pid)}</td>
@@ -336,10 +347,14 @@ export const StockManager = ({ db }: StockManagerProps) => {
                       <td className="py-2 pr-4 text-center text-success">{s.produced}</td>
                       <td className="py-2 pr-4 text-center text-primary">{s.sold}</td>
                       <td className="py-2 pr-4 text-center text-warning">{s.gifted + s.personal}</td>
-                      <td className="py-2 pr-4 text-right text-muted-foreground">R$ {safeFixed(s.totalCostInvested)}</td>
+                      <td className="py-2 pr-4 text-right text-muted-foreground">R$ {safeFixed(unitCost)}</td>
+                      <td className="py-2 pr-4 text-right text-foreground">R$ {safeFixed(unitPrice)}</td>
                       <td className="py-2 pr-4 text-right text-success">R$ {safeFixed(s.totalRevenue)}</td>
-                      <td className={`py-2 text-right font-bold ${profit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      <td className={`py-2 pr-4 text-right font-bold ${profit >= 0 ? 'text-success' : 'text-destructive'}`}>
                         R$ {safeFixed(profit)}
+                      </td>
+                      <td className={`py-2 text-right font-bold ${expectedProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        R$ {safeFixed(expectedProfit)}
                       </td>
                     </tr>
                   );
