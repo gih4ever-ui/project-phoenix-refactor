@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { Cake, Wand2, Download, Upload, Truck, AlertTriangle, TrendingUp, Calculator, ShoppingCart, Tag, Package } from "lucide-react";
+import { Cake, Wand2, Download, Upload, Truck, AlertTriangle, TrendingUp, Calculator, ShoppingCart, Tag, Package, BarChart3 } from "lucide-react";
 import { Card, Button, Badge, SyncIndicator } from "../ui";
 import { safeFixed } from "@/lib/utils";
 import { FluctusData } from "@/types/fluctus";
@@ -11,6 +11,71 @@ interface DashboardProps {
   backup: () => void;
   restore: (file: File) => void;
 }
+
+const ProductionSummaryCard = ({ data }: { data: FluctusData }) => {
+  const movements = data.stockMovements || [];
+  const products = data.products || [];
+
+  const summary = useMemo(() => {
+    const map = new Map<number, { produced: number; sold: number; gifted: number; personal: number; adjusted: number; totalRevenue: number }>();
+
+    for (const m of movements) {
+      if (!map.has(m.productId)) map.set(m.productId, { produced: 0, sold: 0, gifted: 0, personal: 0, adjusted: 0, totalRevenue: 0 });
+      const s = map.get(m.productId)!;
+      switch (m.type) {
+        case 'production': s.produced += m.quantity; break;
+        case 'sale': s.sold += m.quantity; s.totalRevenue += m.quantity * m.unitValue; break;
+        case 'gift': s.gifted += m.quantity; break;
+        case 'personal': s.personal += m.quantity; break;
+        case 'adjustment': s.adjusted += m.quantity; break;
+      }
+    }
+
+    let totalAvailable = 0, totalExpectedProfit = 0, totalProfit = 0, totalCostOfSold = 0;
+    for (const [pid, s] of map) {
+      const product = products.find(p => p.id === pid);
+      const available = s.produced - s.sold - s.gifted - s.personal + s.adjusted;
+      totalAvailable += Math.max(0, available);
+      const unitCost = product?.totalCost || 0;
+      const unitPrice = product?.finalPrice || 0;
+      if (available > 0) totalExpectedProfit += available * (unitPrice - unitCost);
+      totalCostOfSold += s.sold * unitCost;
+      totalProfit += s.totalRevenue;
+    }
+    totalProfit -= totalCostOfSold;
+
+    return { totalAvailable, totalExpectedProfit, totalProfit };
+  }, [movements, products]);
+
+  if (movements.length === 0) return null;
+
+  return (
+    <Card className="border-l-4 border-l-success">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold text-foreground flex items-center gap-2">
+          <BarChart3 size={20} className="text-success" /> Produção & Vendas
+        </h3>
+        <Badge color="green" className="text-[10px]">Resumo</Badge>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <p className="text-xs text-muted-foreground">Peças Disponíveis</p>
+          <p className="text-2xl font-bold text-foreground">{summary.totalAvailable}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Lucro Real</p>
+          <p className={`text-2xl font-bold ${summary.totalProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+            R$ {safeFixed(summary.totalProfit)}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Lucro Esperado</p>
+          <p className="text-2xl font-bold text-primary">R$ {safeFixed(summary.totalExpectedProfit)}</p>
+        </div>
+      </div>
+    </Card>
+  );
+};
 
 export const Dashboard = ({ data, syncStatus, seed, backup, restore }: DashboardProps) => {
   const { products, shoppingTrips, clients } = data;
@@ -161,6 +226,9 @@ export const Dashboard = ({ data, syncStatus, seed, backup, restore }: Dashboard
           <p className="text-xs text-muted-foreground mt-1">{products.length} produto(s) base</p>
         </Card>
       </div>
+
+      {/* Production & Sales Summary */}
+      <ProductionSummaryCard data={data} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="h-full">
