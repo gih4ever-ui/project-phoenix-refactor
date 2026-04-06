@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { Cake, Wand2, Download, Upload, Truck, AlertTriangle, TrendingUp, Calculator, ShoppingCart, Tag, Package } from "lucide-react";
+import { Cake, Wand2, Download, Upload, Truck, AlertTriangle, TrendingUp, Calculator, ShoppingCart, Tag, Package, BarChart3 } from "lucide-react";
 import { Card, Button, Badge, SyncIndicator } from "../ui";
 import { safeFixed } from "@/lib/utils";
 import { FluctusData } from "@/types/fluctus";
@@ -161,6 +161,9 @@ export const Dashboard = ({ data, syncStatus, seed, backup, restore }: Dashboard
           <p className="text-xs text-muted-foreground mt-1">{products.length} produto(s) base</p>
         </Card>
       </div>
+
+      {/* Production & Sales Summary */}
+      <ProductionSummaryCard data={data} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="h-full">
