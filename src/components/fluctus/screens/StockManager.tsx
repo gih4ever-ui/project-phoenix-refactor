@@ -417,6 +417,17 @@ export const StockManager = ({ db }: StockManagerProps) => {
                 <option key={key} value={key}>{cfg.label}</option>
               ))}
             </select>
+            <select
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+              value={filterPeriod}
+              onChange={(e) => setFilterPeriod(e.target.value as typeof filterPeriod)}
+            >
+              <option value="all">Todo o período</option>
+              <option value="week">Últimos 7 dias</option>
+              <option value="month">Últimos 30 dias</option>
+              <option value="currentMonth">Mês atual</option>
+              <option value="lastMonth">Mês passado</option>
+            </select>
           </div>
         </div>
 
