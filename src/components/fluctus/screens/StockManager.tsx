@@ -165,11 +165,35 @@ export const StockManager = ({ db }: StockManagerProps) => {
 
   // Filtered movements
   const filteredMovements = useMemo(() => {
+    const now = new Date();
+    const inPeriod = (dateStr: string) => {
+      if (filterPeriod === 'all') return true;
+      const d = new Date(dateStr);
+      if (filterPeriod === 'week') {
+        const sevenAgo = new Date(now);
+        sevenAgo.setDate(now.getDate() - 7);
+        return d >= sevenAgo && d <= now;
+      }
+      if (filterPeriod === 'month') {
+        const thirtyAgo = new Date(now);
+        thirtyAgo.setDate(now.getDate() - 30);
+        return d >= thirtyAgo && d <= now;
+      }
+      if (filterPeriod === 'currentMonth') {
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }
+      if (filterPeriod === 'lastMonth') {
+        const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear();
+      }
+      return true;
+    };
     return movements
       .filter(m => filterProduct === 'all' || m.productId === filterProduct)
       .filter(m => filterType === 'all' || m.type === filterType)
+      .filter(m => inPeriod(m.date))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [movements, filterProduct, filterType]);
+  }, [movements, filterProduct, filterType, filterPeriod]);
 
   const getProductName = (pid: number) => products.find(p => p.id === pid)?.name || `Produto #${pid}`;
 
