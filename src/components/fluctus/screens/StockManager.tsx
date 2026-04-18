@@ -26,6 +26,7 @@ export const StockManager = ({ db }: StockManagerProps) => {
   const [showForm, setShowForm] = useState(false);
   const [filterProduct, setFilterProduct] = useState<number | 'all'>('all');
   const [filterType, setFilterType] = useState<StockMovementType | 'all'>('all');
+  const [filterPeriod, setFilterPeriod] = useState<'all' | 'week' | 'month' | 'currentMonth' | 'lastMonth'>('all');
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   // Form state
