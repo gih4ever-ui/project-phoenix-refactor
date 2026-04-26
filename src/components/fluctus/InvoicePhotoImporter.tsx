@@ -36,6 +36,8 @@ interface InvoicePhotoImporterProps {
     discountType: "value" | "percent";
     items: InvoiceItem[];
   }) => void;
+  /** Called when the user wants to register a new supplier from the read name. Should return the created supplier (with assigned id). */
+  onCreateSupplier?: (name: string) => Supplier | Promise<Supplier>;
 }
 
 type EditableItem = ParsedItem & { _id: string };
