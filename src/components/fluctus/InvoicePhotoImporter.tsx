@@ -224,7 +224,7 @@ export default function InvoicePhotoImporter({
             <Sparkles className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold">Importar Nota Fiscal por Foto</h2>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleClose}>
+          <Button variant="ghost" className="!p-2" onClick={handleClose}>
             <X className="w-4 h-4" />
           </Button>
         </div>
