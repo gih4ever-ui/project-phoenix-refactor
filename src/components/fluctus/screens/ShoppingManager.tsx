@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Package, Plus, Trash2, Edit2, Check, X, Truck, UtensilsCrossed, FileText, Calendar, ShoppingCart } from "lucide-react";
+import { Package, Plus, Trash2, Edit2, Check, X, Truck, UtensilsCrossed, FileText, Calendar, ShoppingCart, Camera } from "lucide-react";
 import { Card, Input, Button, SearchBar, Badge, ConfirmDialog } from "../ui";
+import InvoicePhotoImporter from "../InvoicePhotoImporter";
 import type { DatabaseHook } from "@/hooks/useLocalData";
 import type { ShoppingTrip, LogisticsItem, Invoice, InvoiceItem } from "@/types/fluctus";
 
