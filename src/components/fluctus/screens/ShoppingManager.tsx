@@ -849,14 +849,24 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                               </Button>
                             </div>
                           ) : (
-                            <Button 
-                              variant="outline" 
-                              className="w-full"
-                              onClick={() => setCreatingInvoice(trip.id)}
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              Adicionar Nota Fiscal
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => setCreatingInvoice(trip.id)}
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Adicionar Nota Fiscal
+                              </Button>
+                              <Button
+                                variant="primary"
+                                className="flex-1"
+                                onClick={() => setPhotoImporterTripId(trip.id)}
+                              >
+                                <Camera className="w-4 h-4 mr-2" />
+                                Importar por Foto (IA)
+                              </Button>
+                            </div>
                           )}
                         </div>
                       )}
