@@ -38,6 +38,7 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
   // Invoice creation flow
   const [creatingInvoice, setCreatingInvoice] = useState<number | null>(null); // tripId when creating
   const [editingInvoice, setEditingInvoice] = useState<number | null>(null); // invoiceId when editing
+  const [photoImporterTripId, setPhotoImporterTripId] = useState<number | null>(null);
   const [newInvoiceSupplierId, setNewInvoiceSupplierId] = useState<number | string>('');
   
   // Invoice item form
