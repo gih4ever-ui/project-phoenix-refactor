@@ -283,15 +283,26 @@ export default function InvoicePhotoImporter({
               {/* Preview thumbnail */}
               {imageDataUrl && (
                 <div className="flex gap-3 items-start">
-                  <img
-                    src={imageDataUrl}
-                    alt="Nota"
-                    className="w-24 h-24 object-cover rounded border"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => { setZoom(1); setZoomOpen(true); }}
+                    className="relative group shrink-0"
+                    title="Clique para ampliar"
+                  >
+                    <img
+                      src={imageDataUrl}
+                      alt="Nota"
+                      className="w-24 h-24 object-cover rounded border"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center rounded">
+                      <Maximize2 className="w-5 h-5 text-white" />
+                    </div>
+                  </button>
                   <div className="flex-1 text-xs text-muted-foreground space-y-1">
                     {parsed.supplierName && <div>Fornecedor lido: <strong>{parsed.supplierName}</strong></div>}
                     {parsed.date && <div>Data: <strong>{parsed.date}</strong></div>}
                     <div>{items.length} itens extraídos</div>
+                    <div className="text-primary">Clique na foto para ampliar e conferir</div>
                   </div>
                   <Button
                     variant="outline"
@@ -328,11 +339,90 @@ export default function InvoicePhotoImporter({
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
-                {!supplierId && parsed.supplierName && (
-                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    "{parsed.supplierName}" não casou com nenhum fornecedor cadastrado. Selecione manualmente.
-                  </p>
+
+                {!supplierId && parsed.supplierName && !creatingSupplier && (
+                  <div className="mt-2 p-3 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 space-y-2">
+                    <p className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1">
+                      <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                      <span>
+                        "<strong>{parsed.supplierName}</strong>" não casou com nenhum fornecedor cadastrado.
+                      </span>
+                    </p>
+                    {onCreateSupplier && (
+                      <Button
+                        variant="outline"
+                        className="!py-1.5 text-xs w-full"
+                        onClick={() => {
+                          setNewSupplierName(parsed.supplierName || "");
+                          setCreatingSupplier(true);
+                        }}
+                      >
+                        <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                        Cadastrar novo fornecedor
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {creatingSupplier && (
+                  <div className="mt-2 p-3 rounded-md border bg-muted/40 space-y-2">
+                    <label className="text-xs text-muted-foreground">
+                      Nome do fornecedor (você pode editar)
+                    </label>
+                    <Input
+                      value={newSupplierName}
+                      onChange={(e) => setNewSupplierName(e.target.value)}
+                      placeholder="Ex: Loja Tecidos São Paulo"
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="!py-1.5 text-xs flex-1"
+                        onClick={() => { setCreatingSupplier(false); setNewSupplierName(""); }}
+                        disabled={savingSupplier}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        className="!py-1.5 text-xs flex-1"
+                        disabled={savingSupplier || !newSupplierName.trim() || !onCreateSupplier}
+                        onClick={async () => {
+                          if (!onCreateSupplier) return;
+                          const name = newSupplierName.trim();
+                          if (!name) return;
+                          setSavingSupplier(true);
+                          try {
+                            const created = await onCreateSupplier(name);
+                            setSupplierId(created.id);
+                            setCreatingSupplier(false);
+                            setNewSupplierName("");
+                            toast({
+                              title: "Fornecedor cadastrado",
+                              description: `"${created.name}" foi adicionado.`,
+                            });
+                          } catch (err) {
+                            toast({
+                              title: "Erro ao cadastrar",
+                              description: err instanceof Error ? err.message : "Tente novamente.",
+                              variant: "destructive",
+                            });
+                          } finally {
+                            setSavingSupplier(false);
+                          }
+                        }}
+                      >
+                        {savingSupplier ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="w-3.5 h-3.5 mr-1.5" />
+                            Salvar
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
 
