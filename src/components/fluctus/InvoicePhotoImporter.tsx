@@ -49,6 +49,7 @@ export default function InvoicePhotoImporter({
   extras,
   suppliers,
   onConfirm,
+  onCreateSupplier,
 }: InvoicePhotoImporterProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
@@ -58,6 +59,12 @@ export default function InvoicePhotoImporter({
   const [supplierId, setSupplierId] = useState<number | string>("");
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<"value" | "percent">("percent");
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [savingSupplier, setSavingSupplier] = useState(false);
+  // Lightbox / zoom state
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
 
   if (!open) return null;
 
