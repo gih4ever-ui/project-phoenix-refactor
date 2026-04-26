@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Camera, Loader2, Sparkles, X, Check, AlertCircle, Trash2 } from "lucide-react";
-import { Button, Input } from "../ui";
+import { Button, Input } from "./ui";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import type { Material, Extra, Supplier, Invoice, InvoiceItem } from "@/types/fluctus";
