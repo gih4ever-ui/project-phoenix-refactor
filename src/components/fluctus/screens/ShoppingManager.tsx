@@ -912,6 +912,18 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
         description="Tem certeza que deseja excluir esta viagem? Todas as notas fiscais e gastos serão perdidos."
         onConfirm={confirmDeleteTrip}
       />
+      <InvoicePhotoImporter
+        open={photoImporterTripId !== null}
+        onClose={() => setPhotoImporterTripId(null)}
+        materials={materials}
+        extras={extras}
+        suppliers={suppliers}
+        onConfirm={(payload) => {
+          if (photoImporterTripId !== null) {
+            handleImportInvoiceFromPhoto(photoImporterTripId, payload);
+          }
+        }}
+      />
     </div>
   );
 }
