@@ -281,7 +281,7 @@ export default function InvoicePhotoImporter({
                   </div>
                   <Button
                     variant="outline"
-                    size="sm"
+                    className="!px-3 !py-1 text-xs"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     Trocar foto
@@ -341,8 +341,7 @@ export default function InvoicePhotoImporter({
                         </div>
                         <Button
                           variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
+                          className="!p-1 h-6 w-6"
                           onClick={() => removeItem(it._id)}
                         >
                           <Trash2 className="w-3 h-3" />
