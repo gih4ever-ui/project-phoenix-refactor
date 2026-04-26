@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Camera, Loader2, Sparkles, X, Check, AlertCircle, Trash2 } from "lucide-react";
+import { Camera, Loader2, Sparkles, X, Check, AlertCircle, Trash2, UserPlus, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { Button, Input } from "./ui";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
