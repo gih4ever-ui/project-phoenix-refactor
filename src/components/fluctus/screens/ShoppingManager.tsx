@@ -202,6 +202,34 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     setInvoiceDiscount({ discount: 0, discountType: 'percent' });
   };
 
+  // Import a complete invoice from a photo (parsed by AI)
+  const handleImportInvoiceFromPhoto = (
+    tripId: number,
+    payload: { supplierId: number | string; discount: number; discountType: 'value' | 'percent'; items: InvoiceItem[] }
+  ) => {
+    const trip = shoppingTrips.find(t => t.id === tripId);
+    if (!trip) return;
+
+    const invoice: Invoice = {
+      id: Date.now(),
+      supplierId: payload.supplierId,
+      discount: payload.discount,
+      discountValue: 0,
+      discountType: payload.discountType,
+      items: payload.items,
+    };
+
+    const updatedInvoices = [...trip.invoices, invoice];
+    const totals = calculateTotals({ ...trip, invoices: updatedInvoices });
+
+    update('shoppingTrips', tripId, {
+      invoices: updatedInvoices,
+      ...totals,
+    });
+
+    setPhotoImporterTripId(null);
+  };
+
   // Finalize invoice (apply discount and close editing)
   const handleFinalizeInvoice = (tripId: number, invoiceId: number) => {
     const trip = shoppingTrips.find(t => t.id === tripId);
