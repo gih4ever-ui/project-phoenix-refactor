@@ -576,6 +576,73 @@ export default function InvoicePhotoImporter({
           )}
         </div>
       </div>
+
+      {/* Zoom lightbox */}
+      {zoomOpen && imageDataUrl && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/90 flex flex-col"
+          onClick={() => setZoomOpen(false)}
+        >
+          <div
+            className="flex items-center justify-between p-3 bg-black/50 text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-sm">Zoom: {Math.round(zoom * 100)}%</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                className="!p-2 text-white hover:bg-white/10"
+                onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+              >
+                <ZoomOut className="w-5 h-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                className="!p-2 text-white hover:bg-white/10"
+                onClick={() => setZoom(1)}
+              >
+                <span className="text-xs px-1">Reset</span>
+              </Button>
+              <Button
+                variant="ghost"
+                className="!p-2 text-white hover:bg-white/10"
+                onClick={() => setZoom((z) => Math.min(8, z + 0.25))}
+              >
+                <ZoomIn className="w-5 h-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                className="!p-2 text-white hover:bg-white/10"
+                onClick={() => setZoomOpen(false)}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+          <div
+            className="flex-1 overflow-auto flex items-start justify-center p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={imageDataUrl}
+              alt="Nota ampliada"
+              style={{
+                transform: `scale(${zoom})`,
+                transformOrigin: "top center",
+                transition: "transform 0.15s ease-out",
+              }}
+              className="max-w-full select-none"
+              draggable={false}
+            />
+          </div>
+          <div
+            className="p-2 text-center text-xs text-white/70 bg-black/50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Toque fora ou no X para fechar. Use os botões + / − para ampliar.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
