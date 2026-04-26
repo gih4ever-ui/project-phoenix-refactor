@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Package, Plus, Trash2, Edit2, Check, X, Truck, UtensilsCrossed, FileText, Calendar, ShoppingCart } from "lucide-react";
+import { Package, Plus, Trash2, Edit2, Check, X, Truck, UtensilsCrossed, FileText, Calendar, ShoppingCart, Camera } from "lucide-react";
 import { Card, Input, Button, SearchBar, Badge, ConfirmDialog } from "../ui";
+import InvoicePhotoImporter from "../InvoicePhotoImporter";
 import type { DatabaseHook } from "@/hooks/useLocalData";
 import type { ShoppingTrip, LogisticsItem, Invoice, InvoiceItem } from "@/types/fluctus";
 
@@ -37,6 +38,7 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
   // Invoice creation flow
   const [creatingInvoice, setCreatingInvoice] = useState<number | null>(null); // tripId when creating
   const [editingInvoice, setEditingInvoice] = useState<number | null>(null); // invoiceId when editing
+  const [photoImporterTripId, setPhotoImporterTripId] = useState<number | null>(null);
   const [newInvoiceSupplierId, setNewInvoiceSupplierId] = useState<number | string>('');
   
   // Invoice item form
@@ -198,6 +200,34 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     setCreatingInvoice(null);
     setNewInvoiceSupplierId('');
     setInvoiceDiscount({ discount: 0, discountType: 'percent' });
+  };
+
+  // Import a complete invoice from a photo (parsed by AI)
+  const handleImportInvoiceFromPhoto = (
+    tripId: number,
+    payload: { supplierId: number | string; discount: number; discountType: 'value' | 'percent'; items: InvoiceItem[] }
+  ) => {
+    const trip = shoppingTrips.find(t => t.id === tripId);
+    if (!trip) return;
+
+    const invoice: Invoice = {
+      id: Date.now(),
+      supplierId: payload.supplierId,
+      discount: payload.discount,
+      discountValue: 0,
+      discountType: payload.discountType,
+      items: payload.items,
+    };
+
+    const updatedInvoices = [...trip.invoices, invoice];
+    const totals = calculateTotals({ ...trip, invoices: updatedInvoices });
+
+    update('shoppingTrips', tripId, {
+      invoices: updatedInvoices,
+      ...totals,
+    });
+
+    setPhotoImporterTripId(null);
   };
 
   // Finalize invoice (apply discount and close editing)
@@ -819,14 +849,24 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                               </Button>
                             </div>
                           ) : (
-                            <Button 
-                              variant="outline" 
-                              className="w-full"
-                              onClick={() => setCreatingInvoice(trip.id)}
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              Adicionar Nota Fiscal
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => setCreatingInvoice(trip.id)}
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Adicionar Nota Fiscal
+                              </Button>
+                              <Button
+                                variant="primary"
+                                className="flex-1"
+                                onClick={() => setPhotoImporterTripId(trip.id)}
+                              >
+                                <Camera className="w-4 h-4 mr-2" />
+                                Importar por Foto (IA)
+                              </Button>
+                            </div>
                           )}
                         </div>
                       )}
@@ -871,6 +911,18 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
         title="Excluir Viagem de Compras"
         description="Tem certeza que deseja excluir esta viagem? Todas as notas fiscais e gastos serão perdidos."
         onConfirm={confirmDeleteTrip}
+      />
+      <InvoicePhotoImporter
+        open={photoImporterTripId !== null}
+        onClose={() => setPhotoImporterTripId(null)}
+        materials={materials}
+        extras={extras}
+        suppliers={suppliers}
+        onConfirm={(payload) => {
+          if (photoImporterTripId !== null) {
+            handleImportInvoiceFromPhoto(photoImporterTripId, payload);
+          }
+        }}
       />
     </div>
   );
