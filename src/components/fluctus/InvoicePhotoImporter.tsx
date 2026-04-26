@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Camera, Loader2, Sparkles, X, Check, AlertCircle, Trash2 } from "lucide-react";
+import { Camera, Loader2, Sparkles, X, Check, AlertCircle, Trash2, UserPlus, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { Button, Input } from "./ui";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -36,6 +36,8 @@ interface InvoicePhotoImporterProps {
     discountType: "value" | "percent";
     items: InvoiceItem[];
   }) => void;
+  /** Called when the user wants to register a new supplier from the read name. Should return the created supplier (with assigned id). */
+  onCreateSupplier?: (name: string) => Supplier | Promise<Supplier>;
 }
 
 type EditableItem = ParsedItem & { _id: string };
@@ -47,6 +49,7 @@ export default function InvoicePhotoImporter({
   extras,
   suppliers,
   onConfirm,
+  onCreateSupplier,
 }: InvoicePhotoImporterProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
@@ -56,6 +59,12 @@ export default function InvoicePhotoImporter({
   const [supplierId, setSupplierId] = useState<number | string>("");
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<"value" | "percent">("percent");
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [savingSupplier, setSavingSupplier] = useState(false);
+  // Lightbox / zoom state
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
 
   if (!open) return null;
 
@@ -67,6 +76,11 @@ export default function InvoicePhotoImporter({
     setDiscount(0);
     setDiscountType("percent");
     setLoading(false);
+    setCreatingSupplier(false);
+    setNewSupplierName("");
+    setSavingSupplier(false);
+    setZoomOpen(false);
+    setZoom(1);
   };
 
   const handleClose = () => {
@@ -269,15 +283,26 @@ export default function InvoicePhotoImporter({
               {/* Preview thumbnail */}
               {imageDataUrl && (
                 <div className="flex gap-3 items-start">
-                  <img
-                    src={imageDataUrl}
-                    alt="Nota"
-                    className="w-24 h-24 object-cover rounded border"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => { setZoom(1); setZoomOpen(true); }}
+                    className="relative group shrink-0"
+                    title="Clique para ampliar"
+                  >
+                    <img
+                      src={imageDataUrl}
+                      alt="Nota"
+                      className="w-24 h-24 object-cover rounded border"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center rounded">
+                      <Maximize2 className="w-5 h-5 text-white" />
+                    </div>
+                  </button>
                   <div className="flex-1 text-xs text-muted-foreground space-y-1">
                     {parsed.supplierName && <div>Fornecedor lido: <strong>{parsed.supplierName}</strong></div>}
                     {parsed.date && <div>Data: <strong>{parsed.date}</strong></div>}
                     <div>{items.length} itens extraídos</div>
+                    <div className="text-primary">Clique na foto para ampliar e conferir</div>
                   </div>
                   <Button
                     variant="outline"
@@ -314,11 +339,90 @@ export default function InvoicePhotoImporter({
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
-                {!supplierId && parsed.supplierName && (
-                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    "{parsed.supplierName}" não casou com nenhum fornecedor cadastrado. Selecione manualmente.
-                  </p>
+
+                {!supplierId && parsed.supplierName && !creatingSupplier && (
+                  <div className="mt-2 p-3 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 space-y-2">
+                    <p className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1">
+                      <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                      <span>
+                        "<strong>{parsed.supplierName}</strong>" não casou com nenhum fornecedor cadastrado.
+                      </span>
+                    </p>
+                    {onCreateSupplier && (
+                      <Button
+                        variant="outline"
+                        className="!py-1.5 text-xs w-full"
+                        onClick={() => {
+                          setNewSupplierName(parsed.supplierName || "");
+                          setCreatingSupplier(true);
+                        }}
+                      >
+                        <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                        Cadastrar novo fornecedor
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {creatingSupplier && (
+                  <div className="mt-2 p-3 rounded-md border bg-muted/40 space-y-2">
+                    <label className="text-xs text-muted-foreground">
+                      Nome do fornecedor (você pode editar)
+                    </label>
+                    <Input
+                      value={newSupplierName}
+                      onChange={(e) => setNewSupplierName(e.target.value)}
+                      placeholder="Ex: Loja Tecidos São Paulo"
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="!py-1.5 text-xs flex-1"
+                        onClick={() => { setCreatingSupplier(false); setNewSupplierName(""); }}
+                        disabled={savingSupplier}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        className="!py-1.5 text-xs flex-1"
+                        disabled={savingSupplier || !newSupplierName.trim() || !onCreateSupplier}
+                        onClick={async () => {
+                          if (!onCreateSupplier) return;
+                          const name = newSupplierName.trim();
+                          if (!name) return;
+                          setSavingSupplier(true);
+                          try {
+                            const created = await onCreateSupplier(name);
+                            setSupplierId(created.id);
+                            setCreatingSupplier(false);
+                            setNewSupplierName("");
+                            toast({
+                              title: "Fornecedor cadastrado",
+                              description: `"${created.name}" foi adicionado.`,
+                            });
+                          } catch (err) {
+                            toast({
+                              title: "Erro ao cadastrar",
+                              description: err instanceof Error ? err.message : "Tente novamente.",
+                              variant: "destructive",
+                            });
+                          } finally {
+                            setSavingSupplier(false);
+                          }
+                        }}
+                      >
+                        {savingSupplier ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="w-3.5 h-3.5 mr-1.5" />
+                            Salvar
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -472,6 +576,73 @@ export default function InvoicePhotoImporter({
           )}
         </div>
       </div>
+
+      {/* Zoom lightbox */}
+      {zoomOpen && imageDataUrl && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/90 flex flex-col"
+          onClick={() => setZoomOpen(false)}
+        >
+          <div
+            className="flex items-center justify-between p-3 bg-black/50 text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-sm">Zoom: {Math.round(zoom * 100)}%</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                className="!p-2 text-white hover:bg-white/10"
+                onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+              >
+                <ZoomOut className="w-5 h-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                className="!p-2 text-white hover:bg-white/10"
+                onClick={() => setZoom(1)}
+              >
+                <span className="text-xs px-1">Reset</span>
+              </Button>
+              <Button
+                variant="ghost"
+                className="!p-2 text-white hover:bg-white/10"
+                onClick={() => setZoom((z) => Math.min(8, z + 0.25))}
+              >
+                <ZoomIn className="w-5 h-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                className="!p-2 text-white hover:bg-white/10"
+                onClick={() => setZoomOpen(false)}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+          <div
+            className="flex-1 overflow-auto flex items-start justify-center p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={imageDataUrl}
+              alt="Nota ampliada"
+              style={{
+                transform: `scale(${zoom})`,
+                transformOrigin: "top center",
+                transition: "transform 0.15s ease-out",
+              }}
+              className="max-w-full select-none"
+              draggable={false}
+            />
+          </div>
+          <div
+            className="p-2 text-center text-xs text-white/70 bg-black/50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Toque fora ou no X para fechar. Use os botões + / − para ampliar.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

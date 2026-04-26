@@ -923,6 +923,11 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
             handleImportInvoiceFromPhoto(photoImporterTripId, payload);
           }
         }}
+        onCreateSupplier={(name) => {
+          const newSupplier = { id: Date.now(), name };
+          add('suppliers', newSupplier);
+          return newSupplier;
+        }}
       />
     </div>
   );
