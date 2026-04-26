@@ -76,6 +76,11 @@ export default function InvoicePhotoImporter({
     setDiscount(0);
     setDiscountType("percent");
     setLoading(false);
+    setCreatingSupplier(false);
+    setNewSupplierName("");
+    setSavingSupplier(false);
+    setZoomOpen(false);
+    setZoom(1);
   };
 
   const handleClose = () => {
