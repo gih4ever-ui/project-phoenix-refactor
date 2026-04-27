@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Package, Plus, Trash2, Edit2, Check, X, Truck, UtensilsCrossed, FileText, Calendar, ShoppingCart, Camera } from "lucide-react";
+import { Package, Plus, Trash2, Edit2, Check, X, Truck, UtensilsCrossed, FileText, Calendar, ShoppingCart, Camera, User } from "lucide-react";
 import { Card, Input, Button, SearchBar, Badge, ConfirmDialog } from "../ui";
 import InvoicePhotoImporter from "../InvoicePhotoImporter";
+import PriceComparisonBadge from "../PriceComparisonBadge";
+import { compareToQuote } from "@/lib/priceCompare";
 import type { DatabaseHook } from "@/hooks/useLocalData";
 import type { ShoppingTrip, LogisticsItem, Invoice, InvoiceItem } from "@/types/fluctus";
 
@@ -96,15 +98,19 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
 
   const safeFixed = (val: number | undefined) => (val ?? 0).toFixed(2);
 
-  // Calculate totals for a trip
+  // Helper: business qty for an invoice item (default = qty if not set)
+  const businessQty = (item: InvoiceItem) => {
+    if (typeof item.qtyBusiness === "number") return item.qtyBusiness;
+    // Retrocompat: includeInTotal === false → 0; senão qty
+    return item.includeInTotal === false ? 0 : item.qty;
+  };
+
+  // Calculate totals for a trip (uses business qty so items pessoais não entram)
   const calculateTotals = (trip: ShoppingTrip) => {
     const totalLogistics = trip.logistics.reduce((sum, l) => sum + (l.value || 0), 0);
     const totalGoods = trip.invoices.reduce((sum, inv) => {
-      // Only include items where includeInTotal is not false
-      const itemsTotal = inv.items
-        .filter(item => item.includeInTotal !== false)
-        .reduce((s, item) => s + (item.qty * item.price), 0);
-      const discount = inv.discountType === 'percent' 
+      const itemsTotal = inv.items.reduce((s, item) => s + businessQty(item) * item.price, 0);
+      const discount = inv.discountType === 'percent'
         ? itemsTotal * (inv.discount / 100)
         : inv.discount;
       return sum + itemsTotal - discount;
