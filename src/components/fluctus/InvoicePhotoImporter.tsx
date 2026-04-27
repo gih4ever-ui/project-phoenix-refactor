@@ -522,12 +522,48 @@ export default function InvoicePhotoImporter({
 
               {/* Items list */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="text-sm font-medium">Itens da nota</h3>
-                  <span className="text-xs text-muted-foreground">
-                    Total estimado: R$ {totalEstimated.toFixed(2)}
-                  </span>
+                  <div className="text-xs text-right">
+                    <div className="text-muted-foreground">
+                      Total da nota: <strong className="text-foreground">R$ {totalNota.toFixed(2)}</strong>
+                    </div>
+                    {totalNegocio !== totalNota && (
+                      <div className="text-emerald-700 dark:text-emerald-400">
+                        Custo do negócio: <strong>R$ {totalNegocio.toFixed(2)}</strong>
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Resumo comparativo de preços vs cotação */}
+                {supplierId && (priceSummary.cheaperCount > 0 || priceSummary.higherCount > 0) && (
+                  <div className="rounded-md border bg-muted/30 p-3 text-xs grid grid-cols-3 gap-2">
+                    <div>
+                      <div className="text-muted-foreground">Mais baratos</div>
+                      <div className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        {priceSummary.cheaperCount} {priceSummary.cheaperCount === 1 ? "item" : "itens"}
+                      </div>
+                      <div className="text-emerald-600 dark:text-emerald-400">−R$ {priceSummary.saved.toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Mais caros</div>
+                      <div className="font-semibold text-rose-600 dark:text-rose-400">
+                        {priceSummary.higherCount} {priceSummary.higherCount === 1 ? "item" : "itens"}
+                      </div>
+                      <div className="text-rose-600 dark:text-rose-400">+R$ {priceSummary.extra.toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Saldo</div>
+                      <div className={`font-bold ${priceSummary.balance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                        {priceSummary.balance >= 0 ? "−" : "+"}R$ {Math.abs(priceSummary.balance).toFixed(2)}
+                      </div>
+                      <div className="text-muted-foreground text-[10px]">
+                        {priceSummary.balance >= 0 ? "economizou" : "pagou a mais"}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {items.map((it) => {
                   const catalog = it.suggestedType === "material" ? materials : extras;
