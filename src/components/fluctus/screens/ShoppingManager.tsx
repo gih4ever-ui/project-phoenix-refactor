@@ -576,11 +576,13 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                       {trip.invoices.length > 0 && (
                         <div className="space-y-3">
                           {trip.invoices.map((inv) => {
-                            const itemsTotal = inv.items.reduce((s, item) => s + (item.qty * item.price), 0);
-                            const discountVal = inv.discountType === 'percent' 
-                              ? itemsTotal * (inv.discount / 100)
+                            const itemsTotalNota = inv.items.reduce((s, item) => s + (item.qty * item.price), 0);
+                            const itemsTotalBusiness = inv.items.reduce((s, item) => s + (businessQty(item) * item.price), 0);
+                            const discountVal = inv.discountType === 'percent'
+                              ? itemsTotalBusiness * (inv.discount / 100)
                               : inv.discount;
-                            const invoiceTotal = itemsTotal - discountVal;
+                            const invoiceTotal = itemsTotalBusiness - discountVal;
+                            const hasPersonal = itemsTotalNota !== itemsTotalBusiness;
                             const isEditing = editingInvoice === inv.id;
 
                             return (
@@ -592,6 +594,9 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                       {inv.items.length} item(ns)
                                       {inv.discount > 0 && (
                                         <> • Desconto: {inv.discount}{inv.discountType === 'percent' ? '%' : ' R$'}</>
+                                      )}
+                                      {hasPersonal && (
+                                        <> • Pago: R$ {safeFixed(itemsTotalNota - discountVal)}</>
                                       )}
                                     </p>
                                   </div>
