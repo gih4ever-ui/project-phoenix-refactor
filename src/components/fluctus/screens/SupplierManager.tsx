@@ -350,6 +350,11 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
                         {polos.find((p) => p.id == s.poloId)?.name}
                       </Badge>
                     )}
+                    {s.invoiceAliases && s.invoiceAliases.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-2 italic" title={s.invoiceAliases.join(", ")}>
+                        Apelidos na nota: {s.invoiceAliases.length}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <button
