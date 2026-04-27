@@ -633,7 +633,11 @@ export default function InvoicePhotoImporter({
                             type="number"
                             step="0.01"
                             value={it.qty}
-                            onChange={(e) => updateItem(it._id, { qty: Number(e.target.value) || 0 })}
+                            onChange={(e) => {
+                              const newQty = Number(e.target.value) || 0;
+                              const cappedBusiness = Math.min(it.qtyBusiness, newQty);
+                              updateItem(it._id, { qty: newQty, qtyBusiness: cappedBusiness });
+                            }}
                             className="h-9"
                           />
                         </div>
