@@ -632,39 +632,56 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                 {/* Invoice Items */}
                                 {(inv.items.length > 0 || isEditing) && (
                                   <div className="p-3 space-y-2">
-                                    {inv.items.map((item, idx) => (
-                                      <div key={idx} className={`flex items-center justify-between text-sm bg-background p-2 rounded ${item.includeInTotal === false ? 'opacity-60' : ''}`}>
-                                        <div className="flex items-center gap-2">
-                                          <Badge 
-                                            color={item.type === 'material' ? 'blue' : item.type === 'extra' ? 'purple' : 'gray'} 
-                                            className="text-xs"
-                                          >
-                                            {item.type === 'material' ? 'MAT' : item.type === 'extra' ? 'EXT' : 'OUT'}
-                                          </Badge>
-                                          <span>{getItemName(item.type, item.id, item.description)}</span>
-                                          {item.includeInTotal === false && (
-                                            <span className="text-xs text-muted-foreground">(não contabiliza)</span>
-                                          )}
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                          <span className="text-muted-foreground">
-                                            {item.qty} × R$ {safeFixed(item.price)}
-                                          </span>
-                                          <span className="font-medium">
-                                            R$ {safeFixed(item.qty * item.price)}
-                                          </span>
-                                          {isEditing && (
-                                            <Button
-                                              variant="ghost"
-                                              className="p-1 h-auto"
-                                              onClick={() => handleRemoveInvoiceItem(trip.id, inv.id, idx)}
+                                    {inv.items.map((item, idx) => {
+                                      const qB = businessQty(item);
+                                      const isFullyPersonal = qB === 0;
+                                      const isPartial = qB > 0 && qB < item.qty;
+                                      const cmp = (item.type !== 'other' && item.id)
+                                        ? compareToQuote({ type: item.type, itemId: item.id, supplierId: inv.supplierId, paidPrice: item.price, materials, extras })
+                                        : null;
+                                      return (
+                                        <div key={idx} className={`flex items-center justify-between text-sm bg-background p-2 rounded flex-wrap gap-2 ${isFullyPersonal ? 'opacity-60' : ''}`}>
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <Badge
+                                              color={item.type === 'material' ? 'blue' : item.type === 'extra' ? 'purple' : 'gray'}
+                                              className="text-xs"
                                             >
-                                              <X className="w-3 h-3" />
-                                            </Button>
-                                          )}
+                                              {item.type === 'material' ? 'MAT' : item.type === 'extra' ? 'EXT' : 'OUT'}
+                                            </Badge>
+                                            <span>{getItemName(item.type, item.id, item.description)}</span>
+                                            {isFullyPersonal && (
+                                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                                <User className="w-3 h-3" />
+                                                {item.excludedReason || 'pessoal'} — fora do balanço
+                                              </span>
+                                            )}
+                                            {isPartial && (
+                                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                                {qB} de {item.qty} no negócio{item.excludedReason ? ` (resto: ${item.excludedReason})` : ''}
+                                              </span>
+                                            )}
+                                            {cmp && cmp.status !== 'no_quote' && <PriceComparisonBadge result={cmp} compact />}
+                                          </div>
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-muted-foreground">
+                                              {item.qty} × R$ {safeFixed(item.price)}
+                                            </span>
+                                            <span className="font-medium">
+                                              R$ {safeFixed(qB * item.price)}
+                                            </span>
+                                            {isEditing && (
+                                              <Button
+                                                variant="ghost"
+                                                className="p-1 h-auto"
+                                                onClick={() => handleRemoveInvoiceItem(trip.id, inv.id, idx)}
+                                              >
+                                                <X className="w-3 h-3" />
+                                              </Button>
+                                            )}
+                                          </div>
                                         </div>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
 
                                     {/* Add Item Form */}
                                     {isEditing && (
