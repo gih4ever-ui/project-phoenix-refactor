@@ -86,6 +86,21 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
     setLoadingPoloCep(false);
   };
 
+  const emptyForm = {
+    name: "",
+    contact: "",
+    phone: "",
+    poloId: "",
+    cep: "",
+    rua: "",
+    numero: "",
+    complemento: "",
+    bairro: "",
+    cidade: "",
+    estado: "",
+    invoiceAliases: [] as string[],
+  };
+
   const handleSave = () => {
     if (!form.name) return;
     if (editingId) {
@@ -94,44 +109,36 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
     } else {
       add("suppliers", form);
     }
-    setForm({
-      name: "",
-      contact: "",
-      phone: "",
-      poloId: "",
-      cep: "",
-      rua: "",
-      numero: "",
-      complemento: "",
-      bairro: "",
-      cidade: "",
-      estado: "",
-    });
+    setForm(emptyForm);
+    setNewAlias("");
   };
 
   const handleEdit = (supplier: any) => {
-    setForm(supplier);
+    setForm({ ...emptyForm, ...supplier, invoiceAliases: supplier.invoiceAliases || [] });
     setEditingId(supplier.id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleCancel = () => {
     setEditingId(null);
-    setForm({
-      name: "",
-      contact: "",
-      phone: "",
-      poloId: "",
-      cep: "",
-      rua: "",
-      numero: "",
-      complemento: "",
-      bairro: "",
-      cidade: "",
-      estado: "",
-    });
+    setForm(emptyForm);
+    setNewAlias("");
   };
 
+  const handleAddAlias = () => {
+    const a = newAlias.trim();
+    if (!a) return;
+    if (form.invoiceAliases.some((x) => x.toLowerCase() === a.toLowerCase())) {
+      setNewAlias("");
+      return;
+    }
+    setForm({ ...form, invoiceAliases: [...form.invoiceAliases, a] });
+    setNewAlias("");
+  };
+
+  const handleRemoveAlias = (alias: string) => {
+    setForm({ ...form, invoiceAliases: form.invoiceAliases.filter((a) => a !== alias) });
+  };
   const handleSavePolo = () => {
     if (!poloForm.name) return;
     if (editingPoloId) {
