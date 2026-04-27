@@ -656,6 +656,88 @@ export default function InvoicePhotoImporter({
                           Selecione um item do catálogo ou troque para "Outro"
                         </p>
                       )}
+
+                      {/* Divisão pessoal / negócio */}
+                      <div className="border-t pt-2 space-y-2">
+                        <div className="flex flex-wrap items-end gap-2">
+                          <div className="w-32">
+                            <label className="text-xs text-muted-foreground flex items-center gap-1">
+                              <User className="w-3 h-3" /> Quantidade minha
+                            </label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min={0}
+                              max={it.qty}
+                              value={it.qtyBusiness}
+                              onChange={(e) => {
+                                const v = Math.max(0, Math.min(Number(e.target.value) || 0, it.qty));
+                                updateItem(it._id, { qtyBusiness: v });
+                              }}
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="flex gap-1 pb-0.5">
+                            <Button
+                              variant="ghost"
+                              className="!px-2 !py-1 text-xs"
+                              type="button"
+                              onClick={() => updateItem(it._id, { qtyBusiness: it.qty, excludedReason: "" })}
+                              title="Tudo entra no negócio"
+                            >
+                              Tudo meu
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="!px-2 !py-1 text-xs"
+                              type="button"
+                              onClick={() => updateItem(it._id, { qtyBusiness: 0, excludedReason: it.excludedReason || "Pessoal" })}
+                              title="Não entra no balanço do negócio"
+                            >
+                              Tudo pessoal
+                            </Button>
+                          </div>
+                          {it.qtyBusiness < it.qty && (
+                            <div className="flex-1 min-w-[140px]">
+                              <label className="text-xs text-muted-foreground">De quem é a parte fora? (opcional)</label>
+                              <Input
+                                placeholder="Pessoal, Parceira, Presente..."
+                                value={it.excludedReason}
+                                onChange={(e) => updateItem(it._id, { excludedReason: e.target.value })}
+                                className="h-9"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Tag visual + comparativo */}
+                        <div className="flex flex-wrap gap-2 items-center justify-between">
+                          <div className="flex flex-wrap gap-2 items-center">
+                            {it.qtyBusiness === 0 && (
+                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                pessoal — fora do balanço
+                              </span>
+                            )}
+                            {it.qtyBusiness > 0 && it.qtyBusiness < it.qty && (
+                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                {it.qtyBusiness} de {it.qty} no negócio
+                              </span>
+                            )}
+                          </div>
+                          {it.suggestedType !== "other" && it.matchedId && supplierId && (
+                            <PriceComparisonBadge
+                              result={compareToQuote({
+                                type: it.suggestedType,
+                                itemId: it.matchedId,
+                                supplierId,
+                                paidPrice: it.unitPrice,
+                                materials,
+                                extras,
+                              })}
+                            />
+                          )}
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
