@@ -482,6 +482,42 @@ export default function InvoicePhotoImporter({
                     </div>
                   </div>
                 )}
+
+                {/* Sugestão de salvar alias */}
+                {aliasSuggestion && onAddSupplierAlias && (
+                  <div className="mt-2 p-3 rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800 space-y-2">
+                    <p className="text-xs text-blue-800 dark:text-blue-200 flex items-start gap-1">
+                      <Sparkles className="w-3 h-3 mt-0.5 shrink-0" />
+                      <span>
+                        A IA leu <strong>"{aliasSuggestion.readName}"</strong>, mas você escolheu <strong>{aliasSuggestion.sup.name}</strong>.
+                        Salvar esse nome como apelido para reconhecer automaticamente da próxima vez?
+                      </span>
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="!py-1 text-xs flex-1"
+                        onClick={() => setAliasDismissed(true)}
+                      >
+                        Agora não
+                      </Button>
+                      <Button
+                        className="!py-1 text-xs flex-1"
+                        onClick={() => {
+                          onAddSupplierAlias(aliasSuggestion.sup.id, aliasSuggestion.readName);
+                          setAliasDismissed(true);
+                          toast({
+                            title: "Apelido salvo",
+                            description: `"${aliasSuggestion.readName}" → ${aliasSuggestion.sup.name}`,
+                          });
+                        }}
+                      >
+                        <Check className="w-3.5 h-3.5 mr-1" />
+                        Salvar apelido
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Items list */}
