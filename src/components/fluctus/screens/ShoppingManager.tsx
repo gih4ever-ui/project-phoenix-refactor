@@ -952,9 +952,16 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
           }
         }}
         onCreateSupplier={(name) => {
-          const newSupplier = { id: Date.now(), name };
+          const newSupplier = { id: Date.now(), name, invoiceAliases: [name] };
           add('suppliers', newSupplier);
           return newSupplier;
+        }}
+        onAddSupplierAlias={(supplierId, alias) => {
+          const sup = suppliers.find((s) => s.id == supplierId);
+          if (!sup) return;
+          const current = sup.invoiceAliases || [];
+          if (current.some((a) => a.toLowerCase() === alias.toLowerCase())) return;
+          update('suppliers', Number(supplierId), { invoiceAliases: [...current, alias] });
         }}
       />
     </div>
