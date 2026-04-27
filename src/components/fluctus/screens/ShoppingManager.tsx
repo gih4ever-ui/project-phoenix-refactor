@@ -798,7 +798,7 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                                 <span className="text-sm font-medium text-green-600">
                                                   = R$ {safeFixed(
                                                     invoiceDiscount.discountType === 'percent'
-                                                      ? itemsTotal * (invoiceDiscount.discount / 100)
+                                                      ? itemsTotalBusiness * (invoiceDiscount.discount / 100)
                                                       : invoiceDiscount.discount
                                                   )}
                                                 </span>
