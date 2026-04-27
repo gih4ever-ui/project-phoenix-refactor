@@ -45,6 +45,8 @@ export interface Supplier {
   bairro?: string;
   cidade?: string;
   estado?: string;
+  /** Nomes alternativos que aparecem em notas fiscais (razão social, etc), para auto-match na leitura por foto. */
+  invoiceAliases?: string[];
 }
 
 export interface Polo {
@@ -241,10 +243,16 @@ export interface LogisticsItem {
 export interface InvoiceItem {
   id: number;
   type: 'material' | 'extra' | 'other';
+  /** Quantidade total que aparece na nota (o que foi pago de fato) */
   qty: number;
   price: number;
   description?: string; // For 'other' type items
-  includeInTotal?: boolean; // Whether to include in cost calculations (default true)
+  /** Quantidade que entra para o negócio (custo + estoque). Se omitido, equivale a qty. Se 0, item é totalmente pessoal. */
+  qtyBusiness?: number;
+  /** Motivo/identificação da parte que NÃO entra no negócio (ex: "Parceira", "Pessoal", "Presente") */
+  excludedReason?: string;
+  /** @deprecated Use qtyBusiness === 0. Mantido para retrocompatibilidade. */
+  includeInTotal?: boolean;
 }
 
 export interface Invoice {
