@@ -290,6 +290,7 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
       qty: Number(newInvoiceItem.qty) || 1,
       price: Number(newInvoiceItem.price) || 0,
       description: newInvoiceItem.type === 'other' ? newInvoiceItem.description : undefined,
+      qtyBusiness: newInvoiceItem.includeInTotal === false ? 0 : (Number(newInvoiceItem.qty) || 1),
       includeInTotal: newInvoiceItem.includeInTotal !== false
     };
 
