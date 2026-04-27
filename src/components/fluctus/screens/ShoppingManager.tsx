@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Package, Plus, Trash2, Edit2, Check, X, Truck, UtensilsCrossed, FileText, Calendar, ShoppingCart, Camera } from "lucide-react";
+import { Package, Plus, Trash2, Edit2, Check, X, Truck, UtensilsCrossed, FileText, Calendar, ShoppingCart, Camera, User } from "lucide-react";
 import { Card, Input, Button, SearchBar, Badge, ConfirmDialog } from "../ui";
 import InvoicePhotoImporter from "../InvoicePhotoImporter";
+import PriceComparisonBadge from "../PriceComparisonBadge";
+import { compareToQuote } from "@/lib/priceCompare";
 import type { DatabaseHook } from "@/hooks/useLocalData";
 import type { ShoppingTrip, LogisticsItem, Invoice, InvoiceItem } from "@/types/fluctus";
 
@@ -96,15 +98,19 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
 
   const safeFixed = (val: number | undefined) => (val ?? 0).toFixed(2);
 
-  // Calculate totals for a trip
+  // Helper: business qty for an invoice item (default = qty if not set)
+  const businessQty = (item: InvoiceItem) => {
+    if (typeof item.qtyBusiness === "number") return item.qtyBusiness;
+    // Retrocompat: includeInTotal === false → 0; senão qty
+    return item.includeInTotal === false ? 0 : item.qty;
+  };
+
+  // Calculate totals for a trip (uses business qty so items pessoais não entram)
   const calculateTotals = (trip: ShoppingTrip) => {
     const totalLogistics = trip.logistics.reduce((sum, l) => sum + (l.value || 0), 0);
     const totalGoods = trip.invoices.reduce((sum, inv) => {
-      // Only include items where includeInTotal is not false
-      const itemsTotal = inv.items
-        .filter(item => item.includeInTotal !== false)
-        .reduce((s, item) => s + (item.qty * item.price), 0);
-      const discount = inv.discountType === 'percent' 
+      const itemsTotal = inv.items.reduce((s, item) => s + businessQty(item) * item.price, 0);
+      const discount = inv.discountType === 'percent'
         ? itemsTotal * (inv.discount / 100)
         : inv.discount;
       return sum + itemsTotal - discount;
@@ -284,6 +290,7 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
       qty: Number(newInvoiceItem.qty) || 1,
       price: Number(newInvoiceItem.price) || 0,
       description: newInvoiceItem.type === 'other' ? newInvoiceItem.description : undefined,
+      qtyBusiness: newInvoiceItem.includeInTotal === false ? 0 : (Number(newInvoiceItem.qty) || 1),
       includeInTotal: newInvoiceItem.includeInTotal !== false
     };
 
@@ -570,11 +577,13 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                       {trip.invoices.length > 0 && (
                         <div className="space-y-3">
                           {trip.invoices.map((inv) => {
-                            const itemsTotal = inv.items.reduce((s, item) => s + (item.qty * item.price), 0);
-                            const discountVal = inv.discountType === 'percent' 
-                              ? itemsTotal * (inv.discount / 100)
+                            const itemsTotalNota = inv.items.reduce((s, item) => s + (item.qty * item.price), 0);
+                            const itemsTotalBusiness = inv.items.reduce((s, item) => s + (businessQty(item) * item.price), 0);
+                            const discountVal = inv.discountType === 'percent'
+                              ? itemsTotalBusiness * (inv.discount / 100)
                               : inv.discount;
-                            const invoiceTotal = itemsTotal - discountVal;
+                            const invoiceTotal = itemsTotalBusiness - discountVal;
+                            const hasPersonal = itemsTotalNota !== itemsTotalBusiness;
                             const isEditing = editingInvoice === inv.id;
 
                             return (
@@ -586,6 +595,9 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                       {inv.items.length} item(ns)
                                       {inv.discount > 0 && (
                                         <> • Desconto: {inv.discount}{inv.discountType === 'percent' ? '%' : ' R$'}</>
+                                      )}
+                                      {hasPersonal && (
+                                        <> • Pago: R$ {safeFixed(itemsTotalNota - discountVal)}</>
                                       )}
                                     </p>
                                   </div>
@@ -621,39 +633,56 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                 {/* Invoice Items */}
                                 {(inv.items.length > 0 || isEditing) && (
                                   <div className="p-3 space-y-2">
-                                    {inv.items.map((item, idx) => (
-                                      <div key={idx} className={`flex items-center justify-between text-sm bg-background p-2 rounded ${item.includeInTotal === false ? 'opacity-60' : ''}`}>
-                                        <div className="flex items-center gap-2">
-                                          <Badge 
-                                            color={item.type === 'material' ? 'blue' : item.type === 'extra' ? 'purple' : 'gray'} 
-                                            className="text-xs"
-                                          >
-                                            {item.type === 'material' ? 'MAT' : item.type === 'extra' ? 'EXT' : 'OUT'}
-                                          </Badge>
-                                          <span>{getItemName(item.type, item.id, item.description)}</span>
-                                          {item.includeInTotal === false && (
-                                            <span className="text-xs text-muted-foreground">(não contabiliza)</span>
-                                          )}
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                          <span className="text-muted-foreground">
-                                            {item.qty} × R$ {safeFixed(item.price)}
-                                          </span>
-                                          <span className="font-medium">
-                                            R$ {safeFixed(item.qty * item.price)}
-                                          </span>
-                                          {isEditing && (
-                                            <Button
-                                              variant="ghost"
-                                              className="p-1 h-auto"
-                                              onClick={() => handleRemoveInvoiceItem(trip.id, inv.id, idx)}
+                                    {inv.items.map((item, idx) => {
+                                      const qB = businessQty(item);
+                                      const isFullyPersonal = qB === 0;
+                                      const isPartial = qB > 0 && qB < item.qty;
+                                      const cmp = (item.type !== 'other' && item.id)
+                                        ? compareToQuote({ type: item.type, itemId: item.id, supplierId: inv.supplierId, paidPrice: item.price, materials, extras })
+                                        : null;
+                                      return (
+                                        <div key={idx} className={`flex items-center justify-between text-sm bg-background p-2 rounded flex-wrap gap-2 ${isFullyPersonal ? 'opacity-60' : ''}`}>
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <Badge
+                                              color={item.type === 'material' ? 'blue' : item.type === 'extra' ? 'purple' : 'gray'}
+                                              className="text-xs"
                                             >
-                                              <X className="w-3 h-3" />
-                                            </Button>
-                                          )}
+                                              {item.type === 'material' ? 'MAT' : item.type === 'extra' ? 'EXT' : 'OUT'}
+                                            </Badge>
+                                            <span>{getItemName(item.type, item.id, item.description)}</span>
+                                            {isFullyPersonal && (
+                                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                                <User className="w-3 h-3" />
+                                                {item.excludedReason || 'pessoal'} — fora do balanço
+                                              </span>
+                                            )}
+                                            {isPartial && (
+                                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                                {qB} de {item.qty} no negócio{item.excludedReason ? ` (resto: ${item.excludedReason})` : ''}
+                                              </span>
+                                            )}
+                                            {cmp && cmp.status !== 'no_quote' && <PriceComparisonBadge result={cmp} compact />}
+                                          </div>
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-muted-foreground">
+                                              {item.qty} × R$ {safeFixed(item.price)}
+                                            </span>
+                                            <span className="font-medium">
+                                              R$ {safeFixed(qB * item.price)}
+                                            </span>
+                                            {isEditing && (
+                                              <Button
+                                                variant="ghost"
+                                                className="p-1 h-auto"
+                                                onClick={() => handleRemoveInvoiceItem(trip.id, inv.id, idx)}
+                                              >
+                                                <X className="w-3 h-3" />
+                                              </Button>
+                                            )}
+                                          </div>
                                         </div>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
 
                                     {/* Add Item Form */}
                                     {isEditing && (
@@ -787,7 +816,7 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                                 <span className="text-sm font-medium text-green-600">
                                                   = R$ {safeFixed(
                                                     invoiceDiscount.discountType === 'percent'
-                                                      ? itemsTotal * (invoiceDiscount.discount / 100)
+                                                      ? itemsTotalBusiness * (invoiceDiscount.discount / 100)
                                                       : invoiceDiscount.discount
                                                   )}
                                                 </span>
@@ -924,9 +953,16 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
           }
         }}
         onCreateSupplier={(name) => {
-          const newSupplier = { id: Date.now(), name };
+          const newSupplier = { id: Date.now(), name, invoiceAliases: [name] };
           add('suppliers', newSupplier);
           return newSupplier;
+        }}
+        onAddSupplierAlias={(supplierId, alias) => {
+          const sup = suppliers.find((s) => s.id == supplierId);
+          if (!sup) return;
+          const current = sup.invoiceAliases || [];
+          if (current.some((a) => a.toLowerCase() === alias.toLowerCase())) return;
+          update('suppliers', Number(supplierId), { invoiceAliases: [...current, alias] });
         }}
       />
     </div>

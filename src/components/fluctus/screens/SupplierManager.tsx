@@ -30,7 +30,9 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
     bairro: "",
     cidade: "",
     estado: "",
+    invoiceAliases: [] as string[],
   });
+  const [newAlias, setNewAlias] = useState("");
   const [loadingCep, setLoadingCep] = useState(false);
 
   // Polo form
@@ -84,6 +86,21 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
     setLoadingPoloCep(false);
   };
 
+  const emptyForm = {
+    name: "",
+    contact: "",
+    phone: "",
+    poloId: "",
+    cep: "",
+    rua: "",
+    numero: "",
+    complemento: "",
+    bairro: "",
+    cidade: "",
+    estado: "",
+    invoiceAliases: [] as string[],
+  };
+
   const handleSave = () => {
     if (!form.name) return;
     if (editingId) {
@@ -92,44 +109,36 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
     } else {
       add("suppliers", form);
     }
-    setForm({
-      name: "",
-      contact: "",
-      phone: "",
-      poloId: "",
-      cep: "",
-      rua: "",
-      numero: "",
-      complemento: "",
-      bairro: "",
-      cidade: "",
-      estado: "",
-    });
+    setForm(emptyForm);
+    setNewAlias("");
   };
 
   const handleEdit = (supplier: any) => {
-    setForm(supplier);
+    setForm({ ...emptyForm, ...supplier, invoiceAliases: supplier.invoiceAliases || [] });
     setEditingId(supplier.id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleCancel = () => {
     setEditingId(null);
-    setForm({
-      name: "",
-      contact: "",
-      phone: "",
-      poloId: "",
-      cep: "",
-      rua: "",
-      numero: "",
-      complemento: "",
-      bairro: "",
-      cidade: "",
-      estado: "",
-    });
+    setForm(emptyForm);
+    setNewAlias("");
   };
 
+  const handleAddAlias = () => {
+    const a = newAlias.trim();
+    if (!a) return;
+    if (form.invoiceAliases.some((x) => x.toLowerCase() === a.toLowerCase())) {
+      setNewAlias("");
+      return;
+    }
+    setForm({ ...form, invoiceAliases: [...form.invoiceAliases, a] });
+    setNewAlias("");
+  };
+
+  const handleRemoveAlias = (alias: string) => {
+    setForm({ ...form, invoiceAliases: form.invoiceAliases.filter((a) => a !== alias) });
+  };
   const handleSavePolo = () => {
     if (!poloForm.name) return;
     if (editingPoloId) {
@@ -255,7 +264,54 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
                 </p>
               )}
             </div>
-            <AddressForm form={form} setForm={setForm} loading={loadingCep} fetchCep={handleFetchCep} />
+            <AddressForm form={form} setForm={setForm as any} loading={loadingCep} fetchCep={handleFetchCep} />
+
+            {/* Apelidos na nota fiscal */}
+            <div className="mt-4">
+              <label className="text-sm font-medium text-muted-foreground block mb-1">
+                Apelidos na nota fiscal
+              </label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Outros nomes que este fornecedor pode aparecer em notas (ex: razão social). A IA usa esses apelidos para reconhecer automaticamente nas fotos.
+              </p>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  placeholder='Ex: "ADAMA COMERCIO LTDA"'
+                  value={newAlias}
+                  onChange={(e) => setNewAlias(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddAlias();
+                    }
+                  }}
+                />
+                <Button onClick={handleAddAlias} variant="ghost" type="button">
+                  <Plus size={16} /> Adicionar
+                </Button>
+              </div>
+              {form.invoiceAliases.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {form.invoiceAliases.map((a) => (
+                    <span
+                      key={a}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-xs text-foreground border"
+                    >
+                      {a}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAlias(a)}
+                        className="hover:text-destructive"
+                        aria-label={`Remover ${a}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mt-4 flex justify-end gap-2">
               {editingId && (
                 <Button onClick={handleCancel} variant="ghost">
@@ -293,6 +349,11 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
                         <MapPin size={10} className="mr-1" />
                         {polos.find((p) => p.id == s.poloId)?.name}
                       </Badge>
+                    )}
+                    {s.invoiceAliases && s.invoiceAliases.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-2 italic" title={s.invoiceAliases.join(", ")}>
+                        Apelidos na nota: {s.invoiceAliases.length}
+                      </p>
                     )}
                   </div>
                   <div className="flex gap-2">

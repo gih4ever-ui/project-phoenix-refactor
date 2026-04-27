@@ -14,11 +14,15 @@ interface CatalogItem {
   name: string;
 }
 
+interface SupplierItem extends CatalogItem {
+  aliases?: string[];
+}
+
 interface RequestBody {
   imageDataUrl: string; // data:image/...;base64,XXXX
   materials?: CatalogItem[];
   extras?: CatalogItem[];
-  suppliers?: CatalogItem[];
+  suppliers?: SupplierItem[];
 }
 
 Deno.serve(async (req) => {
@@ -47,11 +51,17 @@ Deno.serve(async (req) => {
     const extras = body.extras ?? [];
     const suppliers = body.suppliers ?? [];
 
+    const formatSupplier = (s: SupplierItem) => {
+      const aliases = (s.aliases || []).filter(Boolean);
+      const aliasPart = aliases.length > 0 ? ` (também aparece como: ${aliases.map(a => `"${a}"`).join(", ")})` : "";
+      return `- id=${s.id}: "${s.name}"${aliasPart}`;
+    };
+
     const catalogText = `
-CATÁLOGO DO USUÁRIO (use para sugerir matches por similaridade de nome; se nada bater bem, retorne null no matchedId):
+CATÁLOGO DO USUÁRIO (use para sugerir matches por similaridade de nome; se nada bater bem, retorne string vazia no matchedId):
 
 FORNECEDORES CADASTRADOS:
-${suppliers.map((s) => `- id=${s.id}: "${s.name}"`).join("\n") || "(nenhum)"}
+${suppliers.map(formatSupplier).join("\n") || "(nenhum)"}
 
 MATERIAIS CADASTRADOS:
 ${materials.map((m) => `- id=${m.id}: "${m.name}"`).join("\n") || "(nenhum)"}
@@ -60,20 +70,20 @@ EXTRAS CADASTRADOS (embalagens, etiquetas, etc):
 ${extras.map((e) => `- id=${e.id}: "${e.name}"`).join("\n") || "(nenhum)"}
 `;
 
-    const systemPrompt = `Você é um assistente especializado em extrair dados de notas fiscais e cupons fiscais brasileiros a partir de imagens.
+    const systemPrompt = `Você é um assistente especializado em extrair dados de notas fiscais e cupons fiscais brasileiros a parto de imagens.
 Sua tarefa é ler a imagem fornecida, identificar os dados da nota e retornar um JSON estruturado.
 
 ${catalogText}
 
 REGRAS:
-1. Extraia o nome do fornecedor/emitente da nota. Tente casar com um fornecedor cadastrado pelo nome (busca aproximada, ignore "LTDA", "ME", acentos, caixa). Se casar, retorne supplierMatchedId; caso contrário null.
-2. Extraia a data da compra no formato YYYY-MM-DD. Se não encontrar, use a data de hoje.
+1. Extraia o nome do fornecedor/emitente da nota. Tente casar com um fornecedor cadastrado pelo nome OU pelos apelidos listados (busca aproximada, ignore "LTDA", "ME", acentos, caixa). Se casar, retorne supplierMatchedId; caso contrário string vazia.
+2. Extraia a data da compra no formato YYYY-MM-DD. Se não encontrar, use string vazia.
 3. Para CADA item da nota, extraia: descrição original (text), quantidade, valor unitário e valor total.
-4. Para cada item, sugira o tipo: "material" (matéria-prima, tecido, fio, etc), "extra" (embalagem, etiqueta, sacola) ou "other" (qualquer coisa que não bata claramente).
-5. Para cada item do tipo material/extra, tente casar com um item do catálogo do usuário pelo nome (similaridade) e retorne matchedId. Se a similaridade for baixa, retorne null e mantenha o tipo como "other".
-6. Extraia desconto total se houver, separando se é em valor (R$) ou percentual (%).
+4. Para cada item, sugira o tipo: "material" (matéria-prima, tecido, fio, etc), "extra" (embalagem, etiqueta, sacola) ou "other" (qualquer coisa que não bata claramente, inclusive itens pessoais como bebidas, comida, doces).
+5. Para cada item do tipo material/extra, tente casar com um item do catálogo do usuário pelo nome (similaridade) e retorne matchedId. Se a similaridade for baixa, retorne string vazia e mantenha o tipo como "other".
+6. Extraia desconto total se houver, separando se é em valor (R$) ou percentual (%). Use "none" se não houver.
 7. Use ponto como separador decimal nos números. Não retorne strings nos campos numéricos.
-8. NÃO invente dados — se um campo não estiver legível, retorne null.`;
+8. NÃO invente dados — se um campo não estiver legível, retorne string vazia (campos texto) ou 0 (numéricos).`;
 
     const aiPayload = {
       model: "google/gemini-2.5-flash",
