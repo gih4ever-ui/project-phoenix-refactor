@@ -58,6 +58,7 @@ export default function InvoicePhotoImporter({
   suppliers,
   onConfirm,
   onCreateSupplier,
+  onAddSupplierAlias,
 }: InvoicePhotoImporterProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
@@ -70,6 +71,8 @@ export default function InvoicePhotoImporter({
   const [creatingSupplier, setCreatingSupplier] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState("");
   const [savingSupplier, setSavingSupplier] = useState(false);
+  // Alias suggestion when user picks a supplier different from the one read by AI
+  const [aliasDismissed, setAliasDismissed] = useState(false);
   // Lightbox / zoom state
   const [zoomOpen, setZoomOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -87,6 +90,7 @@ export default function InvoicePhotoImporter({
     setCreatingSupplier(false);
     setNewSupplierName("");
     setSavingSupplier(false);
+    setAliasDismissed(false);
     setZoomOpen(false);
     setZoom(1);
   };
@@ -131,7 +135,7 @@ export default function InvoicePhotoImporter({
           imageDataUrl: dataUrl,
           materials: materials.map((m) => ({ id: m.id, name: m.name })),
           extras: extras.map((e) => ({ id: e.id, name: e.name })),
-          suppliers: suppliers.map((s) => ({ id: s.id, name: s.name })),
+          suppliers: suppliers.map((s) => ({ id: s.id, name: s.name, aliases: s.invoiceAliases || [] })),
         },
       });
 
@@ -154,15 +158,19 @@ export default function InvoicePhotoImporter({
 
       setParsed(result);
       setItems(
-        result.items.map((it, idx) => ({
-          ...it,
-          _id: `${Date.now()}-${idx}`,
-          // If suggested type is material/extra but no match, fall back to "other"
-          suggestedType:
+        result.items.map((it, idx) => {
+          const finalType: "material" | "extra" | "other" =
             (it.suggestedType === "material" || it.suggestedType === "extra") && !it.matchedId
               ? "other"
-              : it.suggestedType,
-        })),
+              : it.suggestedType;
+          return {
+            ...it,
+            suggestedType: finalType,
+            _id: `${Date.now()}-${idx}`,
+            qtyBusiness: it.qty, // por padrão, tudo entra no negócio
+            excludedReason: "",
+          };
+        }),
       );
       if (result.supplierMatchedId) {
         setSupplierId(result.supplierMatchedId);
@@ -207,23 +215,21 @@ export default function InvoicePhotoImporter({
     }
 
     const invoiceItems: InvoiceItem[] = items.map((it) => {
-      if (it.suggestedType === "other") {
-        return {
-          id: 0,
-          type: "other",
-          qty: it.qty,
-          price: it.unitPrice,
-          description: it.description,
-          includeInTotal: true,
-        };
-      }
-      return {
-        id: Number(it.matchedId) || 0,
+      const qtyBusiness = Math.max(0, Math.min(it.qtyBusiness ?? it.qty, it.qty));
+      const base: InvoiceItem = {
+        id: it.suggestedType === "other" ? 0 : Number(it.matchedId) || 0,
         type: it.suggestedType,
         qty: it.qty,
         price: it.unitPrice,
-        includeInTotal: true,
+        qtyBusiness,
+        excludedReason: qtyBusiness < it.qty ? (it.excludedReason?.trim() || "Pessoal") : undefined,
+        // includeInTotal mantido só por retrocompat: false quando 100% pessoal
+        includeInTotal: qtyBusiness > 0,
       };
+      if (it.suggestedType === "other") {
+        base.description = it.description;
+      }
+      return base;
     });
 
     onConfirm({
@@ -235,7 +241,51 @@ export default function InvoicePhotoImporter({
     reset();
   };
 
-  const totalEstimated = items.reduce((sum, it) => sum + it.qty * it.unitPrice, 0);
+  const totalNota = items.reduce((sum, it) => sum + it.qty * it.unitPrice, 0);
+  const totalNegocio = items.reduce((sum, it) => sum + (it.qtyBusiness ?? it.qty) * it.unitPrice, 0);
+
+  // Comparativo agregado: economia/acréscimo vs cotações
+  const priceSummary = useMemo(() => {
+    let saved = 0;
+    let extra = 0;
+    let cheaperCount = 0;
+    let higherCount = 0;
+    items.forEach((it) => {
+      if (it.suggestedType === "other" || !it.matchedId || !supplierId) return;
+      const qtyB = it.qtyBusiness ?? it.qty;
+      if (qtyB <= 0) return;
+      const cmp = compareToQuote({
+        type: it.suggestedType,
+        itemId: it.matchedId,
+        supplierId,
+        paidPrice: it.unitPrice,
+        materials,
+        extras,
+      });
+      if (cmp.status === "cheaper") {
+        saved += -cmp.diff * qtyB;
+        cheaperCount++;
+      } else if (cmp.status === "higher") {
+        extra += cmp.diff * qtyB;
+        higherCount++;
+      }
+    });
+    return { saved, extra, balance: saved - extra, cheaperCount, higherCount };
+  }, [items, supplierId, materials, extras]);
+
+  // Sugestão de alias: a IA leu um nome, o usuário escolheu outro fornecedor
+  const aliasSuggestion = useMemo(() => {
+    if (aliasDismissed) return null;
+    if (!parsed?.supplierName || !supplierId) return null;
+    const sup = suppliers.find((s) => s.id == supplierId);
+    if (!sup) return null;
+    const readName = parsed.supplierName.trim();
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (norm(readName) === norm(sup.name)) return null;
+    const aliases = sup.invoiceAliases || [];
+    if (aliases.some((a) => norm(a) === norm(readName))) return null;
+    return { sup, readName };
+  }, [aliasDismissed, parsed, supplierId, suppliers]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 overflow-y-auto">
