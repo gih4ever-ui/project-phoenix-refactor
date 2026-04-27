@@ -264,7 +264,54 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
                 </p>
               )}
             </div>
-            <AddressForm form={form} setForm={setForm} loading={loadingCep} fetchCep={handleFetchCep} />
+            <AddressForm form={form} setForm={setForm as any} loading={loadingCep} fetchCep={handleFetchCep} />
+
+            {/* Apelidos na nota fiscal */}
+            <div className="mt-4">
+              <label className="text-sm font-medium text-muted-foreground block mb-1">
+                Apelidos na nota fiscal
+              </label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Outros nomes que este fornecedor pode aparecer em notas (ex: razão social). A IA usa esses apelidos para reconhecer automaticamente nas fotos.
+              </p>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  placeholder='Ex: "ADAMA COMERCIO LTDA"'
+                  value={newAlias}
+                  onChange={(e) => setNewAlias(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddAlias();
+                    }
+                  }}
+                />
+                <Button onClick={handleAddAlias} variant="ghost" type="button">
+                  <Plus size={16} /> Adicionar
+                </Button>
+              </div>
+              {form.invoiceAliases.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {form.invoiceAliases.map((a) => (
+                    <span
+                      key={a}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-xs text-foreground border"
+                    >
+                      {a}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAlias(a)}
+                        className="hover:text-destructive"
+                        aria-label={`Remover ${a}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mt-4 flex justify-end gap-2">
               {editingId && (
                 <Button onClick={handleCancel} variant="ghost">
