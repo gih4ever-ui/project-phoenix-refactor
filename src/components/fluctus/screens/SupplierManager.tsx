@@ -30,7 +30,9 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
     bairro: "",
     cidade: "",
     estado: "",
+    invoiceAliases: [] as string[],
   });
+  const [newAlias, setNewAlias] = useState("");
   const [loadingCep, setLoadingCep] = useState(false);
 
   // Polo form
