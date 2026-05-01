@@ -822,20 +822,6 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                             />
                                           </div>
                                           
-                                          {newInvoiceItem.type === 'other' && (
-                                            <div className="flex items-center gap-2">
-                                              <label className="text-xs text-muted-foreground flex items-center gap-1">
-                                                <input
-                                                  type="checkbox"
-                                                  checked={newInvoiceItem.includeInTotal !== false}
-                                                  onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, includeInTotal: e.target.checked })}
-                                                  className="w-4 h-4"
-                                                />
-                                                Contabilizar
-                                              </label>
-                                            </div>
-                                          )}
-                                          
                                           <Button 
                                             className="px-3"
                                             onClick={() => handleAddInvoiceItem(trip.id, inv.id)}
@@ -844,6 +830,62 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                             <Plus className="w-4 h-4" />
                                           </Button>
                                         </div>
+
+                                        {/* Classification selector */}
+                                        <div className="flex items-start gap-2 flex-wrap pt-1">
+                                          <span className="text-xs text-muted-foreground mt-2">Para quem é?</span>
+                                          {(() => {
+                                            const modes: { key: ItemMode; label: string; cls: string }[] = [
+                                              { key: 'mine', label: 'Meu', cls: 'bg-primary text-primary-foreground border-primary' },
+                                              { key: 'partner', label: 'Parceira', cls: 'bg-pink-100 text-pink-800 border-pink-300 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800' },
+                                              { key: 'personal', label: 'Pessoal', cls: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800' },
+                                              { key: 'split', label: 'Dividido', cls: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' },
+                                            ];
+                                            return modes.map((m) => {
+                                              const active = itemMode === m.key;
+                                              return (
+                                                <button
+                                                  key={m.key}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setItemMode(m.key);
+                                                    if (m.key === 'split') {
+                                                      const half = Math.max(0, (Number(newInvoiceItem.qty) || 1) / 2);
+                                                      setSplitMine(half);
+                                                    }
+                                                  }}
+                                                  className={`text-xs px-3 py-1.5 rounded-full border transition ${active ? m.cls : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/70'}`}
+                                                >
+                                                  {m.label}
+                                                </button>
+                                              );
+                                            });
+                                          })()}
+
+                                          {itemMode === 'split' && (
+                                            <div className="flex items-center gap-2 ml-2 flex-wrap">
+                                              <label className="text-xs text-muted-foreground">Meu:</label>
+                                              <Input
+                                                type="number"
+                                                step="0.01"
+                                                min={0}
+                                                max={Number(newInvoiceItem.qty) || 1}
+                                                value={splitMine || ''}
+                                                onChange={(e) => setSplitMine(Number(e.target.value))}
+                                                className="w-20 h-8 text-sm"
+                                              />
+                                              <span className="text-xs text-muted-foreground">de {Number(newInvoiceItem.qty) || 1}</span>
+                                              <label className="text-xs text-muted-foreground">Resto:</label>
+                                              <Input
+                                                placeholder="Parceira, Pessoal..."
+                                                value={splitReason}
+                                                onChange={(e) => setSplitReason(e.target.value)}
+                                                className="w-32 h-8 text-sm"
+                                              />
+                                            </div>
+                                          )}
+                                        </div>
+
                                         
                                         {/* Discount Section - at the end */}
                                         <div className="flex gap-2 items-end pt-3 border-t bg-muted/30 -mx-3 -mb-3 p-3 rounded-b-lg">
