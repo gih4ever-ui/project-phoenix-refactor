@@ -695,46 +695,107 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                       const cmp = (item.type !== 'other' && item.id)
                                         ? compareToQuote({ type: item.type, itemId: item.id, supplierId: inv.supplierId, paidPrice: item.price, materials, extras })
                                         : null;
+                                      const itemKey = `${inv.id}:${idx}`;
+                                      const isClassifyOpen = editingItemKey === itemKey;
                                       return (
-                                        <div key={idx} className={`flex items-center justify-between text-sm bg-background p-2 rounded flex-wrap gap-2 ${isFullyPersonal ? 'opacity-60' : ''}`}>
-                                          <div className="flex items-center gap-2 flex-wrap">
-                                            <Badge
-                                              color={item.type === 'material' ? 'blue' : item.type === 'extra' ? 'purple' : 'gray'}
-                                              className="text-xs"
-                                            >
-                                              {item.type === 'material' ? 'MAT' : item.type === 'extra' ? 'EXT' : 'OUT'}
-                                            </Badge>
-                                            <span>{getItemName(item.type, item.id, item.description)}</span>
-                                            {isFullyPersonal && (
-                                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                                <User className="w-3 h-3" />
-                                                {item.excludedReason || 'pessoal'} — fora do balanço
-                                              </span>
-                                            )}
-                                            {isPartial && (
-                                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                                {qB} de {item.qty} no negócio{item.excludedReason ? ` (resto: ${item.excludedReason})` : ''}
-                                              </span>
-                                            )}
-                                            {cmp && cmp.status !== 'no_quote' && <PriceComparisonBadge result={cmp} compact />}
-                                          </div>
-                                          <div className="flex items-center gap-3">
-                                            <span className="text-muted-foreground">
-                                              {item.qty} × R$ {safeFixed(item.price)}
-                                            </span>
-                                            <span className="font-medium">
-                                              R$ {safeFixed(qB * item.price)}
-                                            </span>
-                                            {isEditing && (
-                                              <Button
-                                                variant="ghost"
-                                                className="p-1 h-auto"
-                                                onClick={() => handleRemoveInvoiceItem(trip.id, inv.id, idx)}
+                                        <div key={idx} className={`text-sm bg-background p-2 rounded ${isFullyPersonal ? 'opacity-60' : ''}`}>
+                                          <div className="flex items-center justify-between flex-wrap gap-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <Badge
+                                                color={item.type === 'material' ? 'blue' : item.type === 'extra' ? 'purple' : 'gray'}
+                                                className="text-xs"
                                               >
-                                                <X className="w-3 h-3" />
-                                              </Button>
-                                            )}
+                                                {item.type === 'material' ? 'MAT' : item.type === 'extra' ? 'EXT' : 'OUT'}
+                                              </Badge>
+                                              <span>{getItemName(item.type, item.id, item.description)}</span>
+                                              {isFullyPersonal && (
+                                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                                  <User className="w-3 h-3" />
+                                                  {item.excludedReason || 'pessoal'} — fora do balanço
+                                                </span>
+                                              )}
+                                              {isPartial && (
+                                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                                  {qB} de {item.qty} no negócio{item.excludedReason ? ` (resto: ${item.excludedReason})` : ''}
+                                                </span>
+                                              )}
+                                              {cmp && cmp.status !== 'no_quote' && <PriceComparisonBadge result={cmp} compact />}
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                              <span className="text-muted-foreground">
+                                                {item.qty} × R$ {safeFixed(item.price)}
+                                              </span>
+                                              <span className="font-medium">
+                                                R$ {safeFixed(qB * item.price)}
+                                              </span>
+                                              {isEditing && (
+                                                <Button
+                                                  variant="ghost"
+                                                  className="p-1 h-auto"
+                                                  onClick={() => setEditingItemKey(isClassifyOpen ? null : itemKey)}
+                                                  title="Classificar"
+                                                >
+                                                  <Edit2 className="w-3 h-3" />
+                                                </Button>
+                                              )}
+                                              {isEditing && (
+                                                <Button
+                                                  variant="ghost"
+                                                  className="p-1 h-auto"
+                                                  onClick={() => handleRemoveInvoiceItem(trip.id, inv.id, idx)}
+                                                >
+                                                  <X className="w-3 h-3" />
+                                                </Button>
+                                              )}
+                                            </div>
                                           </div>
+
+                                          {isEditing && isClassifyOpen && (
+                                            <div className="mt-2 pt-2 border-t flex flex-wrap items-center gap-2">
+                                              <span className="text-xs text-muted-foreground">Para quem é?</span>
+                                              {([
+                                                { key: 'mine', label: 'Meu', cls: 'bg-primary text-primary-foreground border-primary', apply: () => handleUpdateItemClassification(trip.id, inv.id, idx, { qtyBusiness: item.qty }) },
+                                                { key: 'partner', label: 'Parceira', cls: 'bg-pink-100 text-pink-800 border-pink-300 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800', apply: () => handleUpdateItemClassification(trip.id, inv.id, idx, { qtyBusiness: 0, excludedReason: 'Parceira' }) },
+                                                { key: 'personal', label: 'Pessoal', cls: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800', apply: () => handleUpdateItemClassification(trip.id, inv.id, idx, { qtyBusiness: 0, excludedReason: 'Pessoal' }) },
+                                              ] as const).map((m) => {
+                                                const active =
+                                                  (m.key === 'mine' && qB === item.qty) ||
+                                                  (m.key === 'partner' && qB === 0 && /parceir/i.test(item.excludedReason || '')) ||
+                                                  (m.key === 'personal' && qB === 0 && !/parceir/i.test(item.excludedReason || ''));
+                                                return (
+                                                  <button
+                                                    key={m.key}
+                                                    type="button"
+                                                    onClick={m.apply}
+                                                    className={`text-xs px-3 py-1 rounded-full border transition ${active ? m.cls : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/70'}`}
+                                                  >
+                                                    {m.label}
+                                                  </button>
+                                                );
+                                              })}
+                                              <div className="flex items-center gap-2 ml-1">
+                                                <label className="text-xs text-muted-foreground">Dividir — meu:</label>
+                                                <Input
+                                                  type="number"
+                                                  step="0.01"
+                                                  min={0}
+                                                  max={item.qty}
+                                                  value={qB}
+                                                  onChange={(e) => handleUpdateItemClassification(trip.id, inv.id, idx, { qtyBusiness: Number(e.target.value), excludedReason: item.excludedReason || 'Parceira' })}
+                                                  className="w-20 h-8 text-sm"
+                                                />
+                                                <span className="text-xs text-muted-foreground">de {item.qty}</span>
+                                                {qB > 0 && qB < item.qty && (
+                                                  <Input
+                                                    placeholder="Resto: Parceira..."
+                                                    value={item.excludedReason || ''}
+                                                    onChange={(e) => handleUpdateItemClassification(trip.id, inv.id, idx, { qtyBusiness: qB, excludedReason: e.target.value })}
+                                                    className="w-32 h-8 text-sm"
+                                                  />
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}
