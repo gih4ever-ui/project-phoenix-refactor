@@ -291,14 +291,31 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     const invoiceIndex = trip.invoices.findIndex(i => i.id === invoiceId);
     if (invoiceIndex === -1) return;
 
+    const totalQty = Number(newInvoiceItem.qty) || 1;
+    let qtyBusiness = totalQty;
+    let excludedReason: string | undefined = undefined;
+    if (itemMode === 'mine') {
+      qtyBusiness = totalQty;
+    } else if (itemMode === 'partner') {
+      qtyBusiness = 0;
+      excludedReason = 'Parceira';
+    } else if (itemMode === 'personal') {
+      qtyBusiness = 0;
+      excludedReason = 'Pessoal';
+    } else if (itemMode === 'split') {
+      qtyBusiness = Math.max(0, Math.min(splitMine, totalQty));
+      if (qtyBusiness < totalQty) excludedReason = splitReason.trim() || 'Parceira';
+    }
+
     const item: InvoiceItem = {
       id: Number(newInvoiceItem.id) || 0,
       type: newInvoiceItem.type as 'material' | 'extra' | 'other',
-      qty: Number(newInvoiceItem.qty) || 1,
+      qty: totalQty,
       price: Number(newInvoiceItem.price) || 0,
       description: newInvoiceItem.type === 'other' ? newInvoiceItem.description : undefined,
-      qtyBusiness: newInvoiceItem.includeInTotal === false ? 0 : (Number(newInvoiceItem.qty) || 1),
-      includeInTotal: newInvoiceItem.includeInTotal !== false
+      qtyBusiness,
+      excludedReason,
+      includeInTotal: qtyBusiness > 0,
     };
 
     const updatedInvoices = [...trip.invoices];
@@ -315,6 +332,9 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     });
 
     setNewInvoiceItem({ type: 'material', id: 0, qty: 1, price: 0, description: '', includeInTotal: true });
+    setItemMode('mine');
+    setSplitMine(0);
+    setSplitReason('Parceira');
   };
 
   // Remove item from invoice
