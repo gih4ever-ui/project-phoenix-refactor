@@ -44,6 +44,10 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
   const [newInvoiceSupplierId, setNewInvoiceSupplierId] = useState<number | string>('');
   
   // Invoice item form
+  type ItemMode = 'mine' | 'partner' | 'personal' | 'split';
+  const [itemMode, setItemMode] = useState<ItemMode>('mine');
+  const [splitMine, setSplitMine] = useState<number>(0);
+  const [splitReason, setSplitReason] = useState<string>('Parceira');
   const [newInvoiceItem, setNewInvoiceItem] = useState<Partial<InvoiceItem>>({
     type: 'material',
     id: 0,
@@ -52,6 +56,9 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     description: '',
     includeInTotal: true
   });
+
+  // Inline classification editor state for existing items
+  const [editingItemKey, setEditingItemKey] = useState<string | null>(null); // `${invoiceId}:${idx}`
 
   // Invoice discount (applied at the end)
   const [invoiceDiscount, setInvoiceDiscount] = useState<{ discount: number; discountType: 'value' | 'percent' }>({
