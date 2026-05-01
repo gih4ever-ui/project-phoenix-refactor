@@ -359,6 +359,34 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     });
   };
 
+  // Update classification of an existing invoice item
+  const handleUpdateItemClassification = (
+    tripId: number,
+    invoiceId: number,
+    itemIndex: number,
+    patch: { qtyBusiness: number; excludedReason?: string }
+  ) => {
+    const trip = shoppingTrips.find(t => t.id === tripId);
+    if (!trip) return;
+    const invoiceIndex = trip.invoices.findIndex(i => i.id === invoiceId);
+    if (invoiceIndex === -1) return;
+
+    const updatedInvoices = [...trip.invoices];
+    const items = [...updatedInvoices[invoiceIndex].items];
+    const current = items[itemIndex];
+    if (!current) return;
+    const cappedBusiness = Math.max(0, Math.min(patch.qtyBusiness, current.qty));
+    items[itemIndex] = {
+      ...current,
+      qtyBusiness: cappedBusiness,
+      excludedReason: cappedBusiness < current.qty ? (patch.excludedReason?.trim() || 'Pessoal') : undefined,
+      includeInTotal: cappedBusiness > 0,
+    };
+    updatedInvoices[invoiceIndex] = { ...updatedInvoices[invoiceIndex], items };
+    const totals = calculateTotals({ ...trip, invoices: updatedInvoices });
+    update('shoppingTrips', tripId, { invoices: updatedInvoices, ...totals });
+  };
+
   // Toggle trip status and recalculate logistics fund when completing
   const handleToggleStatus = (tripId: number) => {
     const trip = shoppingTrips.find(t => t.id === tripId);
