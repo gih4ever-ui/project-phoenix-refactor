@@ -661,70 +661,94 @@ export default function InvoicePhotoImporter({
                         </p>
                       )}
 
-                      {/* Divisão pessoal / negócio */}
+                      {/* Divisão pessoal / negócio — modo rápido */}
                       <div className="border-t pt-2 space-y-2">
-                        <div className="flex flex-wrap items-end gap-2">
-                          <div className="w-32">
-                            <label className="text-xs text-muted-foreground flex items-center gap-1">
-                              <User className="w-3 h-3" /> Quantidade minha
-                            </label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min={0}
-                              max={it.qty}
-                              value={it.qtyBusiness}
-                              onChange={(e) => {
-                                const v = Math.max(0, Math.min(Number(e.target.value) || 0, it.qty));
-                                updateItem(it._id, { qtyBusiness: v });
-                              }}
-                              className="h-9"
-                            />
-                          </div>
-                          <div className="flex gap-1 pb-0.5">
-                            <Button
-                              variant="ghost"
-                              className="!px-2 !py-1 text-xs"
+                        {(() => {
+                          const mode: "mine" | "partner" | "personal" | "split" =
+                            it.qtyBusiness === it.qty
+                              ? "mine"
+                              : it.qtyBusiness === 0 && /parceir/i.test(it.excludedReason || "")
+                                ? "partner"
+                                : it.qtyBusiness === 0
+                                  ? "personal"
+                                  : "split";
+                          const setMode = (m: "mine" | "partner" | "personal" | "split") => {
+                            if (m === "mine") updateItem(it._id, { qtyBusiness: it.qty, excludedReason: "" });
+                            else if (m === "partner") updateItem(it._id, { qtyBusiness: 0, excludedReason: "Parceira" });
+                            else if (m === "personal") updateItem(it._id, { qtyBusiness: 0, excludedReason: "Pessoal" });
+                            else updateItem(it._id, {
+                              qtyBusiness: it.qtyBusiness > 0 && it.qtyBusiness < it.qty ? it.qtyBusiness : Math.max(0, it.qty / 2),
+                              excludedReason: it.excludedReason || "Parceira",
+                            });
+                          };
+                          const btn = (m: typeof mode, label: string, activeCls: string) => (
+                            <button
                               type="button"
-                              onClick={() => updateItem(it._id, { qtyBusiness: it.qty, excludedReason: "" })}
-                              title="Tudo entra no negócio"
+                              onClick={() => setMode(m)}
+                              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                mode === m
+                                  ? activeCls
+                                  : "bg-background text-muted-foreground border-border hover:bg-muted"
+                              }`}
                             >
-                              Tudo meu
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className="!px-2 !py-1 text-xs"
-                              type="button"
-                              onClick={() => updateItem(it._id, { qtyBusiness: 0, excludedReason: it.excludedReason || "Pessoal" })}
-                              title="Não entra no balanço do negócio"
-                            >
-                              Tudo pessoal
-                            </Button>
-                          </div>
-                          {it.qtyBusiness < it.qty && (
-                            <div className="flex-1 min-w-[140px]">
-                              <label className="text-xs text-muted-foreground">De quem é a parte fora? (opcional)</label>
+                              {label}
+                            </button>
+                          );
+                          return (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-xs text-muted-foreground mr-1 flex items-center gap-1">
+                                <User className="w-3 h-3" /> Para quem é:
+                              </span>
+                              {btn("mine", "Meu", "bg-primary/15 text-primary border-primary/30")}
+                              {btn("partner", "Parceira", "bg-pink-100 text-pink-800 border-pink-300 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800")}
+                              {btn("personal", "Pessoal", "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800")}
+                              {btn("split", "Dividido", "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800")}
+                            </div>
+                          );
+                        })()}
+
+                        {/* Controles do modo Dividido */}
+                        {it.qtyBusiness > 0 && it.qtyBusiness < it.qty && (
+                          <div className="flex flex-wrap items-end gap-2">
+                            <div className="w-32">
+                              <label className="text-xs text-muted-foreground">Qtd minha (de {it.qty})</label>
                               <Input
-                                placeholder="Pessoal, Parceira, Presente..."
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                max={it.qty}
+                                value={it.qtyBusiness}
+                                onChange={(e) => {
+                                  const v = Math.max(0, Math.min(Number(e.target.value) || 0, it.qty));
+                                  updateItem(it._id, { qtyBusiness: v });
+                                }}
+                                className="h-9"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-[140px]">
+                              <label className="text-xs text-muted-foreground">De quem é a outra parte?</label>
+                              <Input
+                                placeholder="Parceira, Pessoal, Presente..."
                                 value={it.excludedReason}
                                 onChange={(e) => updateItem(it._id, { excludedReason: e.target.value })}
                                 className="h-9"
                               />
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
 
                         {/* Tag visual + comparativo */}
                         <div className="flex flex-wrap gap-2 items-center justify-between">
                           <div className="flex flex-wrap gap-2 items-center">
                             {it.qtyBusiness === 0 && (
                               <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                pessoal — fora do balanço
+                                {it.excludedReason || "pessoal"} — fora do balanço
                               </span>
                             )}
                             {it.qtyBusiness > 0 && it.qtyBusiness < it.qty && (
                               <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                                 {it.qtyBusiness} de {it.qty} no negócio
+                                {it.excludedReason ? ` (${it.qty - it.qtyBusiness} ${it.excludedReason})` : ""}
                               </span>
                             )}
                           </div>
