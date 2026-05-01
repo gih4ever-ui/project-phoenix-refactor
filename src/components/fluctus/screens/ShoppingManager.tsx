@@ -44,6 +44,10 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
   const [newInvoiceSupplierId, setNewInvoiceSupplierId] = useState<number | string>('');
   
   // Invoice item form
+  type ItemMode = 'mine' | 'partner' | 'personal' | 'split';
+  const [itemMode, setItemMode] = useState<ItemMode>('mine');
+  const [splitMine, setSplitMine] = useState<number>(0);
+  const [splitReason, setSplitReason] = useState<string>('Parceira');
   const [newInvoiceItem, setNewInvoiceItem] = useState<Partial<InvoiceItem>>({
     type: 'material',
     id: 0,
@@ -52,6 +56,9 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     description: '',
     includeInTotal: true
   });
+
+  // Inline classification editor state for existing items
+  const [editingItemKey, setEditingItemKey] = useState<string | null>(null); // `${invoiceId}:${idx}`
 
   // Invoice discount (applied at the end)
   const [invoiceDiscount, setInvoiceDiscount] = useState<{ discount: number; discountType: 'value' | 'percent' }>({
@@ -284,14 +291,31 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     const invoiceIndex = trip.invoices.findIndex(i => i.id === invoiceId);
     if (invoiceIndex === -1) return;
 
+    const totalQty = Number(newInvoiceItem.qty) || 1;
+    let qtyBusiness = totalQty;
+    let excludedReason: string | undefined = undefined;
+    if (itemMode === 'mine') {
+      qtyBusiness = totalQty;
+    } else if (itemMode === 'partner') {
+      qtyBusiness = 0;
+      excludedReason = 'Parceira';
+    } else if (itemMode === 'personal') {
+      qtyBusiness = 0;
+      excludedReason = 'Pessoal';
+    } else if (itemMode === 'split') {
+      qtyBusiness = Math.max(0, Math.min(splitMine, totalQty));
+      if (qtyBusiness < totalQty) excludedReason = splitReason.trim() || 'Parceira';
+    }
+
     const item: InvoiceItem = {
       id: Number(newInvoiceItem.id) || 0,
       type: newInvoiceItem.type as 'material' | 'extra' | 'other',
-      qty: Number(newInvoiceItem.qty) || 1,
+      qty: totalQty,
       price: Number(newInvoiceItem.price) || 0,
       description: newInvoiceItem.type === 'other' ? newInvoiceItem.description : undefined,
-      qtyBusiness: newInvoiceItem.includeInTotal === false ? 0 : (Number(newInvoiceItem.qty) || 1),
-      includeInTotal: newInvoiceItem.includeInTotal !== false
+      qtyBusiness,
+      excludedReason,
+      includeInTotal: qtyBusiness > 0,
     };
 
     const updatedInvoices = [...trip.invoices];
@@ -308,6 +332,9 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     });
 
     setNewInvoiceItem({ type: 'material', id: 0, qty: 1, price: 0, description: '', includeInTotal: true });
+    setItemMode('mine');
+    setSplitMine(0);
+    setSplitReason('Parceira');
   };
 
   // Remove item from invoice
@@ -330,6 +357,34 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
       invoices: updatedInvoices,
       ...totals
     });
+  };
+
+  // Update classification of an existing invoice item
+  const handleUpdateItemClassification = (
+    tripId: number,
+    invoiceId: number,
+    itemIndex: number,
+    patch: { qtyBusiness: number; excludedReason?: string }
+  ) => {
+    const trip = shoppingTrips.find(t => t.id === tripId);
+    if (!trip) return;
+    const invoiceIndex = trip.invoices.findIndex(i => i.id === invoiceId);
+    if (invoiceIndex === -1) return;
+
+    const updatedInvoices = [...trip.invoices];
+    const items = [...updatedInvoices[invoiceIndex].items];
+    const current = items[itemIndex];
+    if (!current) return;
+    const cappedBusiness = Math.max(0, Math.min(patch.qtyBusiness, current.qty));
+    items[itemIndex] = {
+      ...current,
+      qtyBusiness: cappedBusiness,
+      excludedReason: cappedBusiness < current.qty ? (patch.excludedReason?.trim() || 'Pessoal') : undefined,
+      includeInTotal: cappedBusiness > 0,
+    };
+    updatedInvoices[invoiceIndex] = { ...updatedInvoices[invoiceIndex], items };
+    const totals = calculateTotals({ ...trip, invoices: updatedInvoices });
+    update('shoppingTrips', tripId, { invoices: updatedInvoices, ...totals });
   };
 
   // Toggle trip status and recalculate logistics fund when completing
@@ -640,46 +695,107 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                       const cmp = (item.type !== 'other' && item.id)
                                         ? compareToQuote({ type: item.type, itemId: item.id, supplierId: inv.supplierId, paidPrice: item.price, materials, extras })
                                         : null;
+                                      const itemKey = `${inv.id}:${idx}`;
+                                      const isClassifyOpen = editingItemKey === itemKey;
                                       return (
-                                        <div key={idx} className={`flex items-center justify-between text-sm bg-background p-2 rounded flex-wrap gap-2 ${isFullyPersonal ? 'opacity-60' : ''}`}>
-                                          <div className="flex items-center gap-2 flex-wrap">
-                                            <Badge
-                                              color={item.type === 'material' ? 'blue' : item.type === 'extra' ? 'purple' : 'gray'}
-                                              className="text-xs"
-                                            >
-                                              {item.type === 'material' ? 'MAT' : item.type === 'extra' ? 'EXT' : 'OUT'}
-                                            </Badge>
-                                            <span>{getItemName(item.type, item.id, item.description)}</span>
-                                            {isFullyPersonal && (
-                                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                                <User className="w-3 h-3" />
-                                                {item.excludedReason || 'pessoal'} — fora do balanço
-                                              </span>
-                                            )}
-                                            {isPartial && (
-                                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                                {qB} de {item.qty} no negócio{item.excludedReason ? ` (resto: ${item.excludedReason})` : ''}
-                                              </span>
-                                            )}
-                                            {cmp && cmp.status !== 'no_quote' && <PriceComparisonBadge result={cmp} compact />}
-                                          </div>
-                                          <div className="flex items-center gap-3">
-                                            <span className="text-muted-foreground">
-                                              {item.qty} × R$ {safeFixed(item.price)}
-                                            </span>
-                                            <span className="font-medium">
-                                              R$ {safeFixed(qB * item.price)}
-                                            </span>
-                                            {isEditing && (
-                                              <Button
-                                                variant="ghost"
-                                                className="p-1 h-auto"
-                                                onClick={() => handleRemoveInvoiceItem(trip.id, inv.id, idx)}
+                                        <div key={idx} className={`text-sm bg-background p-2 rounded ${isFullyPersonal ? 'opacity-60' : ''}`}>
+                                          <div className="flex items-center justify-between flex-wrap gap-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <Badge
+                                                color={item.type === 'material' ? 'blue' : item.type === 'extra' ? 'purple' : 'gray'}
+                                                className="text-xs"
                                               >
-                                                <X className="w-3 h-3" />
-                                              </Button>
-                                            )}
+                                                {item.type === 'material' ? 'MAT' : item.type === 'extra' ? 'EXT' : 'OUT'}
+                                              </Badge>
+                                              <span>{getItemName(item.type, item.id, item.description)}</span>
+                                              {isFullyPersonal && (
+                                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                                  <User className="w-3 h-3" />
+                                                  {item.excludedReason || 'pessoal'} — fora do balanço
+                                                </span>
+                                              )}
+                                              {isPartial && (
+                                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                                  {qB} de {item.qty} no negócio{item.excludedReason ? ` (resto: ${item.excludedReason})` : ''}
+                                                </span>
+                                              )}
+                                              {cmp && cmp.status !== 'no_quote' && <PriceComparisonBadge result={cmp} compact />}
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                              <span className="text-muted-foreground">
+                                                {item.qty} × R$ {safeFixed(item.price)}
+                                              </span>
+                                              <span className="font-medium">
+                                                R$ {safeFixed(qB * item.price)}
+                                              </span>
+                                              {isEditing && (
+                                                <Button
+                                                  variant="ghost"
+                                                  className="p-1 h-auto"
+                                                  onClick={() => setEditingItemKey(isClassifyOpen ? null : itemKey)}
+                                                  title="Classificar"
+                                                >
+                                                  <Edit2 className="w-3 h-3" />
+                                                </Button>
+                                              )}
+                                              {isEditing && (
+                                                <Button
+                                                  variant="ghost"
+                                                  className="p-1 h-auto"
+                                                  onClick={() => handleRemoveInvoiceItem(trip.id, inv.id, idx)}
+                                                >
+                                                  <X className="w-3 h-3" />
+                                                </Button>
+                                              )}
+                                            </div>
                                           </div>
+
+                                          {isEditing && isClassifyOpen && (
+                                            <div className="mt-2 pt-2 border-t flex flex-wrap items-center gap-2">
+                                              <span className="text-xs text-muted-foreground">Para quem é?</span>
+                                              {([
+                                                { key: 'mine', label: 'Meu', cls: 'bg-primary text-primary-foreground border-primary', apply: () => handleUpdateItemClassification(trip.id, inv.id, idx, { qtyBusiness: item.qty }) },
+                                                { key: 'partner', label: 'Parceira', cls: 'bg-pink-100 text-pink-800 border-pink-300 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800', apply: () => handleUpdateItemClassification(trip.id, inv.id, idx, { qtyBusiness: 0, excludedReason: 'Parceira' }) },
+                                                { key: 'personal', label: 'Pessoal', cls: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800', apply: () => handleUpdateItemClassification(trip.id, inv.id, idx, { qtyBusiness: 0, excludedReason: 'Pessoal' }) },
+                                              ] as const).map((m) => {
+                                                const active =
+                                                  (m.key === 'mine' && qB === item.qty) ||
+                                                  (m.key === 'partner' && qB === 0 && /parceir/i.test(item.excludedReason || '')) ||
+                                                  (m.key === 'personal' && qB === 0 && !/parceir/i.test(item.excludedReason || ''));
+                                                return (
+                                                  <button
+                                                    key={m.key}
+                                                    type="button"
+                                                    onClick={m.apply}
+                                                    className={`text-xs px-3 py-1 rounded-full border transition ${active ? m.cls : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/70'}`}
+                                                  >
+                                                    {m.label}
+                                                  </button>
+                                                );
+                                              })}
+                                              <div className="flex items-center gap-2 ml-1">
+                                                <label className="text-xs text-muted-foreground">Dividir — meu:</label>
+                                                <Input
+                                                  type="number"
+                                                  step="0.01"
+                                                  min={0}
+                                                  max={item.qty}
+                                                  value={qB}
+                                                  onChange={(e) => handleUpdateItemClassification(trip.id, inv.id, idx, { qtyBusiness: Number(e.target.value), excludedReason: item.excludedReason || 'Parceira' })}
+                                                  className="w-20 h-8 text-sm"
+                                                />
+                                                <span className="text-xs text-muted-foreground">de {item.qty}</span>
+                                                {qB > 0 && qB < item.qty && (
+                                                  <Input
+                                                    placeholder="Resto: Parceira..."
+                                                    value={item.excludedReason || ''}
+                                                    onChange={(e) => handleUpdateItemClassification(trip.id, inv.id, idx, { qtyBusiness: qB, excludedReason: e.target.value })}
+                                                    className="w-32 h-8 text-sm"
+                                                  />
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}
@@ -767,20 +883,6 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                             />
                                           </div>
                                           
-                                          {newInvoiceItem.type === 'other' && (
-                                            <div className="flex items-center gap-2">
-                                              <label className="text-xs text-muted-foreground flex items-center gap-1">
-                                                <input
-                                                  type="checkbox"
-                                                  checked={newInvoiceItem.includeInTotal !== false}
-                                                  onChange={(e) => setNewInvoiceItem({ ...newInvoiceItem, includeInTotal: e.target.checked })}
-                                                  className="w-4 h-4"
-                                                />
-                                                Contabilizar
-                                              </label>
-                                            </div>
-                                          )}
-                                          
                                           <Button 
                                             className="px-3"
                                             onClick={() => handleAddInvoiceItem(trip.id, inv.id)}
@@ -789,6 +891,62 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
                                             <Plus className="w-4 h-4" />
                                           </Button>
                                         </div>
+
+                                        {/* Classification selector */}
+                                        <div className="flex items-start gap-2 flex-wrap pt-1">
+                                          <span className="text-xs text-muted-foreground mt-2">Para quem é?</span>
+                                          {(() => {
+                                            const modes: { key: ItemMode; label: string; cls: string }[] = [
+                                              { key: 'mine', label: 'Meu', cls: 'bg-primary text-primary-foreground border-primary' },
+                                              { key: 'partner', label: 'Parceira', cls: 'bg-pink-100 text-pink-800 border-pink-300 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800' },
+                                              { key: 'personal', label: 'Pessoal', cls: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800' },
+                                              { key: 'split', label: 'Dividido', cls: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' },
+                                            ];
+                                            return modes.map((m) => {
+                                              const active = itemMode === m.key;
+                                              return (
+                                                <button
+                                                  key={m.key}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setItemMode(m.key);
+                                                    if (m.key === 'split') {
+                                                      const half = Math.max(0, (Number(newInvoiceItem.qty) || 1) / 2);
+                                                      setSplitMine(half);
+                                                    }
+                                                  }}
+                                                  className={`text-xs px-3 py-1.5 rounded-full border transition ${active ? m.cls : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/70'}`}
+                                                >
+                                                  {m.label}
+                                                </button>
+                                              );
+                                            });
+                                          })()}
+
+                                          {itemMode === 'split' && (
+                                            <div className="flex items-center gap-2 ml-2 flex-wrap">
+                                              <label className="text-xs text-muted-foreground">Meu:</label>
+                                              <Input
+                                                type="number"
+                                                step="0.01"
+                                                min={0}
+                                                max={Number(newInvoiceItem.qty) || 1}
+                                                value={splitMine || ''}
+                                                onChange={(e) => setSplitMine(Number(e.target.value))}
+                                                className="w-20 h-8 text-sm"
+                                              />
+                                              <span className="text-xs text-muted-foreground">de {Number(newInvoiceItem.qty) || 1}</span>
+                                              <label className="text-xs text-muted-foreground">Resto:</label>
+                                              <Input
+                                                placeholder="Parceira, Pessoal..."
+                                                value={splitReason}
+                                                onChange={(e) => setSplitReason(e.target.value)}
+                                                className="w-32 h-8 text-sm"
+                                              />
+                                            </div>
+                                          )}
+                                        </div>
+
                                         
                                         {/* Discount Section - at the end */}
                                         <div className="flex gap-2 items-end pt-3 border-t bg-muted/30 -mx-3 -mb-3 p-3 rounded-b-lg">
