@@ -304,8 +304,16 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
       qtyBusiness = 0;
       excludedReason = 'Pessoal';
     } else if (itemMode === 'split') {
-      qtyBusiness = Math.max(0, Math.min(splitMine, totalQty));
-      if (qtyBusiness < totalQty) excludedReason = splitReason.trim() || 'Parceira';
+      if (!Number.isFinite(splitMine) || splitMine <= 0) {
+        toast.error('No modo Dividido informe quanto é seu (maior que zero).');
+        return;
+      }
+      if (splitMine >= totalQty) {
+        toast.error("A parte sua não pode ser igual ou maior que a quantidade total. Use 'Meu' se for tudo seu.");
+        return;
+      }
+      qtyBusiness = splitMine;
+      excludedReason = splitReason.trim() || 'Parceira';
     }
 
     const item: InvoiceItem = {
