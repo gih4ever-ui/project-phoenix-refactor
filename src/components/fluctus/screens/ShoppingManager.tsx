@@ -384,7 +384,13 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     const items = [...updatedInvoices[invoiceIndex].items];
     const current = items[itemIndex];
     if (!current) return;
-    const cappedBusiness = Math.max(0, Math.min(patch.qtyBusiness, current.qty));
+    const requested = Number(patch.qtyBusiness);
+    const cappedBusiness = Math.max(0, Math.min(isNaN(requested) ? 0 : requested, current.qty));
+    if (Number.isFinite(requested) && requested > current.qty) {
+      toast.warning(`Limitado a ${current.qty} (quantidade total do item).`);
+    } else if (Number.isFinite(requested) && requested < 0) {
+      toast.warning('Valor negativo ajustado para 0.');
+    }
     items[itemIndex] = {
       ...current,
       qtyBusiness: cappedBusiness,
