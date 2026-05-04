@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Package, Plus, Trash2, Edit2, Check, X, Truck, UtensilsCrossed, FileText, Calendar, ShoppingCart, Camera, User } from "lucide-react";
 import { Card, Input, Button, SearchBar, Badge, ConfirmDialog } from "../ui";
 import InvoicePhotoImporter from "../InvoicePhotoImporter";
@@ -303,8 +304,16 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
       qtyBusiness = 0;
       excludedReason = 'Pessoal';
     } else if (itemMode === 'split') {
-      qtyBusiness = Math.max(0, Math.min(splitMine, totalQty));
-      if (qtyBusiness < totalQty) excludedReason = splitReason.trim() || 'Parceira';
+      if (!Number.isFinite(splitMine) || splitMine <= 0) {
+        toast.error('No modo Dividido informe quanto é seu (maior que zero).');
+        return;
+      }
+      if (splitMine >= totalQty) {
+        toast.error("A parte sua não pode ser igual ou maior que a quantidade total. Use 'Meu' se for tudo seu.");
+        return;
+      }
+      qtyBusiness = splitMine;
+      excludedReason = splitReason.trim() || 'Parceira';
     }
 
     const item: InvoiceItem = {
@@ -375,7 +384,13 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     const items = [...updatedInvoices[invoiceIndex].items];
     const current = items[itemIndex];
     if (!current) return;
-    const cappedBusiness = Math.max(0, Math.min(patch.qtyBusiness, current.qty));
+    const requested = Number(patch.qtyBusiness);
+    const cappedBusiness = Math.max(0, Math.min(isNaN(requested) ? 0 : requested, current.qty));
+    if (Number.isFinite(requested) && requested > current.qty) {
+      toast.warning(`Limitado a ${current.qty} (quantidade total do item).`);
+    } else if (Number.isFinite(requested) && requested < 0) {
+      toast.warning('Valor negativo ajustado para 0.');
+    }
     items[itemIndex] = {
       ...current,
       qtyBusiness: cappedBusiness,
