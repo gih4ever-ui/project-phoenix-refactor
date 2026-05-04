@@ -1,43 +1,42 @@
-## Problema
+## Contexto
 
-A classificação de item (Meu / Parceira / Pessoal / Dividido) hoje só existe no fluxo de **importação por foto** (`InvoicePhotoImporter`). No cadastro **manual** de notas dentro da aba Compras (`ShoppingManager.tsx`), o formulário de adicionar item ainda só tem o checkbox antigo "Contabilizar" (e mesmo assim só aparece para o tipo "Outro"). Resultado: ao digitar a nota manualmente não há onde marcar o que é meu, da parceira ou pessoal.
+Revisei o `ShoppingManager.tsx` e o `useLocalData.ts`. Dos três pedidos, dois já estão funcionando, mas falta o terceiro (validação) e vale reforçar feedback visual:
 
-Os itens **já salvos** em uma nota também não podem ter sua classificação editada na lista — só é possível remover.
+- **Recálculo imediato ao reclassificar**: já acontece. `handleUpdateItemClassification` chama `calculateTotals` e `update('shoppingTrips', ...)` na hora, e `update` dispara o efeito que persiste o JSON no backend.
+- **Persistência ao recarregar**: já acontece. `qtyBusiness` e `excludedReason` são gravados dentro de cada `InvoiceItem` no documento JSON único do usuário (jsonb na nuvem) e relidos na carga.
+- **Validação de split maior que a quantidade total**: hoje o código *silenciosamente* faz `Math.min(splitMine, totalQty)` no add e na edição inline. Não há aviso, então o usuário pode digitar 5 num item de qty 3 e nem perceber que virou 3.
 
 ## O que será feito
 
-### 1. Seletor rápido no formulário de adicionar item (manual)
-No bloco de "Adicionar item" da nota em edição (`ShoppingManager.tsx`, ~linhas 687–791), adicionar um seletor de 4 botões logo abaixo dos campos Qtd/Preço, **disponível para todos os tipos** (material, extra e outro):
+### 1. Validação no formulário de adicionar item (modo Dividido)
+Em `handleAddInvoiceItem` (linha ~287), antes de gravar, quando `itemMode === 'split'`:
+- Se `splitMine <= 0` → toast de erro: "No modo Dividido informe quanto é seu (maior que zero)." e aborta.
+- Se `splitMine >= totalQty` → toast de erro: "A parte sua não pode ser igual ou maior que a quantidade total. Use 'Meu' se for tudo seu." e aborta.
+- Se `splitMine` não-inteiro e o item for por unidade discreta (`extra`/`other` com qty inteira) → toast de aviso, mas permite.
 
-- **Meu** → `qtyBusiness = qty`, `excludedReason = ""`
-- **Parceira** → `qtyBusiness = 0`, `excludedReason = "Parceira"`
-- **Pessoal** → `qtyBusiness = 0`, `excludedReason = "Pessoal"`
-- **Dividido** → habilita um input numérico "Quanto é meu" (0 < x < qty) + campo livre "resto é de" (default "Parceira")
+Visual: usar `sonner` (já é o padrão do projeto, conforme memória).
 
-Visual idêntico ao do `InvoicePhotoImporter` (mesmas cores: primary / pink / amber / blue) para manter consistência.
+### 2. Validação na edição inline de classificação
+Em `handleUpdateItemClassification` (linha ~363) e nos inputs de "Dividido" da lista (linhas ~778–795):
+- Se o usuário digitar valor `> qty` no input numérico, mostrar toast curto ("Limitado a {qty}") e ainda assim aplicar o cap (mantém comportamento defensivo, mas avisa).
+- Se digitar `< 0`, normaliza para 0 com toast.
+- Adicionar `min={0}` e `max={item.qty}` no `<input type="number">` para feedback nativo do browser também.
 
-### 2. Estado e persistência
-Estender o estado `newInvoiceItem` com `qtyBusiness` e `excludedReason`. Ajustar `handleAddInvoiceItem` (~linha 287) para gravar esses campos no `InvoiceItem` em vez de derivar de `includeInTotal`. Manter `includeInTotal` apenas como retrocompatibilidade.
+### 3. Feedback visual de "salvando"
+O recálculo é instantâneo e o `SyncIndicator` global já mostra "salvando/salvo" ao alterar. Não precisa de mudança extra — só confirmar no plano que está coberto.
 
-Remover o checkbox "Contabilizar" antigo (substituído pelo seletor).
-
-### 3. Editar classificação de itens já adicionados
-Na lista de itens da nota (~linha 636), adicionar um pequeno botão de "editar classificação" (ícone) ao lado do botão de remover, que abre os mesmos 4 botões inline para alterar `qtyBusiness` / `excludedReason` daquele item, recalculando os totais via `calculateTotals`.
-
-### 4. Default sensato
-Ao adicionar um novo item, default = **Meu** (todo o item entra no negócio), igual ao comportamento atual.
+### 4. (Opcional, pequeno) Toast de confirmação ao reclassificar
+Toast leve "Item reclassificado como {modo}" quando o usuário troca o modo de um item já salvo, para dar a sensação de que persistiu. Curto, sem bloquear.
 
 ## Arquivos a editar
 
-- `src/components/fluctus/screens/ShoppingManager.tsx` — único arquivo afetado. Mudanças:
-  - Estado inicial de `newInvoiceItem` (incluir `qtyBusiness`, `excludedReason`, modo)
-  - Bloco JSX do formulário "Adicionar item" (linhas ~687–791): adicionar seletor de 4 botões + input de divisão
-  - `handleAddInvoiceItem` (linha ~287): salvar `qtyBusiness` e `excludedReason` corretos
-  - Lista de itens (linha ~636): botão de editar classificação inline
+- `src/components/fluctus/screens/ShoppingManager.tsx` — único arquivo.
+  - `handleAddInvoiceItem` (~287): validar split antes de salvar.
+  - `handleUpdateItemClassification` (~363): toast quando capado, opcional toast de confirmação.
+  - Inputs do modo Dividido no form (linhas ~920–940) e na edição inline (~778–795): adicionar `min`/`max`.
 
 ## Não muda
 
-- Tipos em `src/types/fluctus.ts` (já têm `qtyBusiness` e `excludedReason`)
-- `InvoicePhotoImporter.tsx` (já tem o seletor, fica como está)
-- Lógica de cálculo (`businessQty`, totais) — já consome `qtyBusiness` corretamente
-- `PriceComparisonBadge`, aliases de fornecedor, edge function de OCR — sem alteração
+- Tipos, `useLocalData`, edge functions, `InvoicePhotoImporter`.
+- Lógica de cálculo de totais — já consome `qtyBusiness` corretamente.
+- Persistência — já é automática via debounce do `useLocalData`.
