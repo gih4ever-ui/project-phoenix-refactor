@@ -1,42 +1,38 @@
-## Contexto
+## Objetivo
 
-Revisei o `ShoppingManager.tsx` e o `useLocalData.ts`. Dos três pedidos, dois já estão funcionando, mas falta o terceiro (validação) e vale reforçar feedback visual:
-
-- **Recálculo imediato ao reclassificar**: já acontece. `handleUpdateItemClassification` chama `calculateTotals` e `update('shoppingTrips', ...)` na hora, e `update` dispara o efeito que persiste o JSON no backend.
-- **Persistência ao recarregar**: já acontece. `qtyBusiness` e `excludedReason` são gravados dentro de cada `InvoiceItem` no documento JSON único do usuário (jsonb na nuvem) e relidos na carga.
-- **Validação de split maior que a quantidade total**: hoje o código *silenciosamente* faz `Math.min(splitMine, totalQty)` no add e na edição inline. Não há aviso, então o usuário pode digitar 5 num item de qty 3 e nem perceber que virou 3.
+Registrar a preferência de comunicação em português brasileiro e validar juntos a funcionalidade de classificação de itens (meu / parceira / pessoal) na aba de Compras.
 
 ## O que será feito
 
-### 1. Validação no formulário de adicionar item (modo Dividido)
-Em `handleAddInvoiceItem` (linha ~287), antes de gravar, quando `itemMode === 'split'`:
-- Se `splitMine <= 0` → toast de erro: "No modo Dividido informe quanto é seu (maior que zero)." e aborta.
-- Se `splitMine >= totalQty` → toast de erro: "A parte sua não pode ser igual ou maior que a quantidade total. Use 'Meu' se for tudo seu." e aborta.
-- Se `splitMine` não-inteiro e o item for por unidade discreta (`extra`/`other` com qty inteira) → toast de aviso, mas permite.
+1. **Salvar preferência permanente do usuário** em `mem://~user` para que todas as próximas respostas sejam em português brasileiro.
 
-Visual: usar `sonner` (já é o padrão do projeto, conforme memória).
+2. **Roteiro de teste guiado na aba de Compras** — vamos validar passo a passo:
 
-### 2. Validação na edição inline de classificação
-Em `handleUpdateItemClassification` (linha ~363) e nos inputs de "Dividido" da lista (linhas ~778–795):
-- Se o usuário digitar valor `> qty` no input numérico, mostrar toast curto ("Limitado a {qty}") e ainda assim aplicar o cap (mantém comportamento defensivo, mas avisa).
-- Se digitar `< 0`, normaliza para 0 com toast.
-- Adicionar `min={0}` e `max={item.qty}` no `<input type="number">` para feedback nativo do browser também.
+   **Cadastro de nota nova**
+   - Abrir a aba Compras → adicionar uma nota
+   - Adicionar um item no modo **"Meu"** (loja) → conferir que vai 100% para o balanço da loja
+   - Adicionar um item no modo **"Parceira"** → conferir que não entra no balanço da loja
+   - Adicionar um item no modo **"Pessoal"** → conferir que não entra no balanço da loja
+   - Adicionar um item no modo **"Dividido"** com qty=10 e meu=4 → conferir balanço
+   - Tentar salvar dividido com meu=0 ou meu≥total → deve bloquear com toast de erro
 
-### 3. Feedback visual de "salvando"
-O recálculo é instantâneo e o `SyncIndicator` global já mostra "salvando/salvo" ao alterar. Não precisa de mudança extra — só confirmar no plano que está coberto.
+   **Reclassificação inline**
+   - Trocar a classificação de um item já salvo direto na lista
+   - Conferir recálculo imediato dos totais e do balanço
+   - Tentar digitar split maior que o total → deve limitar e mostrar aviso
 
-### 4. (Opcional, pequeno) Toast de confirmação ao reclassificar
-Toast leve "Item reclassificado como {modo}" quando o usuário troca o modo de um item já salvo, para dar a sensação de que persistiu. Curto, sem bloquear.
+   **Persistência**
+   - Recarregar a página (F5)
+   - Reabrir a aba de Compras e a nota
+   - Conferir que as classificações e splits permaneceram corretos
 
-## Arquivos a editar
+3. **Diagnóstico em caso de problema**: se algum passo falhar, vou abrir o componente `ShoppingManager.tsx` e investigar o ponto específico (validação, recálculo ou persistência).
 
-- `src/components/fluctus/screens/ShoppingManager.tsx` — único arquivo.
-  - `handleAddInvoiceItem` (~287): validar split antes de salvar.
-  - `handleUpdateItemClassification` (~363): toast quando capado, opcional toast de confirmação.
-  - Inputs do modo Dividido no form (linhas ~920–940) e na edição inline (~778–795): adicionar `min`/`max`.
+## Como vamos proceder
 
-## Não muda
+Após aprovar este plano, eu salvo a preferência de idioma e te dou o "ok" para começar o teste. Você executa os passos acima na ordem e me avisa se algo não bater com o esperado — me diga em qual passo travou e o que viu na tela. A partir daí eu corrijo pontualmente.
 
-- Tipos, `useLocalData`, edge functions, `InvoicePhotoImporter`.
-- Lógica de cálculo de totais — já consome `qtyBusiness` corretamente.
-- Persistência — já é automática via debounce do `useLocalData`.
+## Arquivos potencialmente afetados (apenas se houver bug)
+
+- `src/components/fluctus/screens/ShoppingManager.tsx` — lógica de validação, recálculo e classificação
+- `mem://~user` — preferência de idioma (criação)
