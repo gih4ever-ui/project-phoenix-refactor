@@ -1,38 +1,62 @@
 ## Objetivo
 
-Registrar a preferência de comunicação em português brasileiro e validar juntos a funcionalidade de classificação de itens (meu / parceira / pessoal) na aba de Compras.
+Validar persistência e recálculo automático na aba de Compras e padronizar as mensagens de toast (erro/aviso) para deixar claro **modo**, **item** e **limite permitido**.
+
+## Diagnóstico atual (já lido no código)
+
+Em `src/components/fluctus/screens/ShoppingManager.tsx`:
+
+- **Recálculo imediato** já existe: `handleUpdateItemClassification` chama `calculateTotals` e faz `update('shoppingTrips', ...)` na mesma transação → a UI re-renderiza no mesmo tick. Idem para `handleRemoveInvoiceItem` e `handleAddInvoiceItem`. O balanço do fundo de logística só é recalculado quando a viagem é marcada como concluída (`handleToggleStatus` → `recalculateLogisticsFund`), o que é o comportamento esperado.
+- **Persistência** usa `useLocalData` que salva o JSON inteiro (incluindo `qtyBusiness`, `excludedReason`, `includeInTotal` de cada item) no `localStorage` (imediato) e na nuvem (debounce 1,5s). Ao recarregar, recarrega da nuvem se houver sessão, senão do cache local.
+- **Toasts atuais** são genéricos:
+  - `"Limitado a {qty} (quantidade total do item)."`
+  - `"Valor negativo ajustado para 0."`
+  - `"No modo Dividido informe quanto é seu (maior que zero)."`
+  - `"A parte sua não pode ser igual ou maior que a quantidade total. Use 'Meu' se for tudo seu."`
+
+Nenhum cita o **nome do item** nem o **modo atual** sendo aplicado.
 
 ## O que será feito
 
-1. **Salvar preferência permanente do usuário** em `mem://~user` para que todas as próximas respostas sejam em português brasileiro.
+### 1. Teste guiado de persistência e recálculo (sem mudança de código)
 
-2. **Roteiro de teste guiado na aba de Compras** — vamos validar passo a passo:
+Faremos juntos na aba de Compras:
 
-   **Cadastro de nota nova**
-   - Abrir a aba Compras → adicionar uma nota
-   - Adicionar um item no modo **"Meu"** (loja) → conferir que vai 100% para o balanço da loja
-   - Adicionar um item no modo **"Parceira"** → conferir que não entra no balanço da loja
-   - Adicionar um item no modo **"Pessoal"** → conferir que não entra no balanço da loja
-   - Adicionar um item no modo **"Dividido"** com qty=10 e meu=4 → conferir balanço
-   - Tentar salvar dividido com meu=0 ou meu≥total → deve bloquear com toast de erro
+1. Expandir uma viagem em aberto e uma nota.
+2. Reclassificar um item da lista (ex.: trocar "Meu" → "Dividido" com `meu = 3` em um item de `qty = 10`).
+   - **Esperado**: a linha de totais da nota e o "Total mercadorias" da viagem mudam **na hora**, sem F5.
+3. Forçar erro: digitar `meu = 99` num item com `qty = 10`.
+   - **Esperado**: toast de aviso e valor limitado a 10.
+4. Trocar para "Pessoal" e depois voltar para "Meu".
+   - **Esperado**: totais sobem/descem na hora.
+5. Apertar **F5** e reabrir a aba/viagem/nota.
+   - **Esperado**: classificação, split e totais idênticos ao que estavam antes do reload.
 
-   **Reclassificação inline**
-   - Trocar a classificação de um item já salvo direto na lista
-   - Conferir recálculo imediato dos totais e do balanço
-   - Tentar digitar split maior que o total → deve limitar e mostrar aviso
+Se algum desses passos falhar, eu corrijo pontualmente (provavelmente no `calculateTotals` ou no `update` da `shoppingTrips`).
 
-   **Persistência**
-   - Recarregar a página (F5)
-   - Reabrir a aba de Compras e a nota
-   - Conferir que as classificações e splits permaneceram corretos
+### 2. Padronização dos toasts de erro/aviso
 
-3. **Diagnóstico em caso de problema**: se algum passo falhar, vou abrir o componente `ShoppingManager.tsx` e investigar o ponto específico (validação, recálculo ou persistência).
+Substituir as 4 mensagens listadas acima por mensagens com contexto completo. Padrão:
 
-## Como vamos proceder
+```
+[Modo] {Nome do item}: {problema}. {limite ou ação corretiva}.
+```
 
-Após aprovar este plano, eu salvo a preferência de idioma e te dou o "ok" para começar o teste. Você executa os passos acima na ordem e me avisa se algo não bater com o esperado — me diga em qual passo travou e o que viu na tela. A partir daí eu corrijo pontualmente.
+Exemplos finais:
 
-## Arquivos potencialmente afetados (apenas se houver bug)
+- Split acima do total (digitação inline na lista):
+  `Dividido — "Suplex Poliamida": parte sua (99) maior que o total (10). Limitado a 10.`
+- Valor negativo:
+  `"Suplex Poliamida": valor negativo não permitido. Ajustado para 0.`
+- Split inválido no cadastro de item novo (zero):
+  `Dividido — "Suplex Poliamida": informe quanto é seu (entre 1 e {qty - 1}).`
+- Split ≥ total no cadastro:
+  `Dividido — "Suplex Poliamida": parte sua ({n}) deve ser menor que o total ({qty}). Se for tudo seu, use o modo "Meu".`
 
-- `src/components/fluctus/screens/ShoppingManager.tsx` — lógica de validação, recálculo e classificação
-- `mem://~user` — preferência de idioma (criação)
+Helper local para resolver o nome do item (material/extra/descrição livre) e montar o prefixo `[Modo] "Nome"`, evitando repetir a mesma concatenação em cada `toast.error`/`toast.warning`.
+
+## Arquivos afetados
+
+- `src/components/fluctus/screens/ShoppingManager.tsx` — apenas os 4 `toast.*` citados e um pequeno helper `formatItemContext(item, mode)`.
+
+Nenhuma mudança em tipos, persistência ou cálculos.
