@@ -469,12 +469,26 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <ShoppingCart className="w-8 h-8 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">Registro de Compras</h1>
-          <p className="text-muted-foreground">Registre suas viagens de compras, notas fiscais e gastos extras</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <ShoppingCart className="w-8 h-8 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">Registro de Compras</h1>
+            <p className="text-muted-foreground">Registre suas viagens de compras, notas fiscais e gastos extras</p>
+          </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            recalculateAllTotals();
+            toast.success('Totais recalculados e balanço sincronizado.');
+          }}
+          title="Recalcular totais e sincronizar balanço"
+        >
+          <RefreshCw className="w-4 h-4 mr-1" />
+          Recalcular
+        </Button>
       </div>
 
       {/* New Trip Form */}
