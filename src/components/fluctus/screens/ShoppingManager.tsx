@@ -479,7 +479,7 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
         </div>
         <Button
           variant="outline"
-          size="sm"
+          className="text-sm py-1.5 px-3 h-auto"
           onClick={() => {
             recalculateAllTotals();
             toast.success('Totais recalculados e balanço sincronizado.');
