@@ -304,12 +304,13 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
       qtyBusiness = 0;
       excludedReason = 'Pessoal';
     } else if (itemMode === 'split') {
+      const itemLabel = `Dividido — "${getItemName(newInvoiceItem.type as 'material' | 'extra' | 'other', Number(newInvoiceItem.id) || 0, newInvoiceItem.description)}"`;
       if (!Number.isFinite(splitMine) || splitMine <= 0) {
-        toast.error('No modo Dividido informe quanto é seu (maior que zero).');
+        toast.error(`${itemLabel}: informe quanto é seu (entre 1 e ${Math.max(totalQty - 1, 1)}).`);
         return;
       }
       if (splitMine >= totalQty) {
-        toast.error("A parte sua não pode ser igual ou maior que a quantidade total. Use 'Meu' se for tudo seu.");
+        toast.error(`${itemLabel}: parte sua (${splitMine}) deve ser menor que o total (${totalQty}). Se for tudo seu, use o modo "Meu".`);
         return;
       }
       qtyBusiness = splitMine;
@@ -386,10 +387,16 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     if (!current) return;
     const requested = Number(patch.qtyBusiness);
     const cappedBusiness = Math.max(0, Math.min(isNaN(requested) ? 0 : requested, current.qty));
+    const itemName = getItemName(current.type, current.id, current.description);
+    const modePrefix = cappedBusiness === 0
+      ? 'Pessoal'
+      : cappedBusiness === current.qty
+        ? 'Meu'
+        : 'Dividido';
     if (Number.isFinite(requested) && requested > current.qty) {
-      toast.warning(`Limitado a ${current.qty} (quantidade total do item).`);
+      toast.warning(`${modePrefix} — "${itemName}": parte sua (${requested}) maior que o total (${current.qty}). Limitado a ${current.qty}.`);
     } else if (Number.isFinite(requested) && requested < 0) {
-      toast.warning('Valor negativo ajustado para 0.');
+      toast.warning(`"${itemName}": valor negativo (${requested}) não permitido. Ajustado para 0.`);
     }
     items[itemIndex] = {
       ...current,
