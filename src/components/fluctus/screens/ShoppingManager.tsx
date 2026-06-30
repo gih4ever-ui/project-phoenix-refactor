@@ -387,10 +387,16 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
     if (!current) return;
     const requested = Number(patch.qtyBusiness);
     const cappedBusiness = Math.max(0, Math.min(isNaN(requested) ? 0 : requested, current.qty));
+    const itemName = getItemName(current.type, current.id, current.description);
+    const modePrefix = cappedBusiness === 0
+      ? 'Pessoal'
+      : cappedBusiness === current.qty
+        ? 'Meu'
+        : 'Dividido';
     if (Number.isFinite(requested) && requested > current.qty) {
-      toast.warning(`Limitado a ${current.qty} (quantidade total do item).`);
+      toast.warning(`${modePrefix} — "${itemName}": parte sua (${requested}) maior que o total (${current.qty}). Limitado a ${current.qty}.`);
     } else if (Number.isFinite(requested) && requested < 0) {
-      toast.warning('Valor negativo ajustado para 0.');
+      toast.warning(`"${itemName}": valor negativo (${requested}) não permitido. Ajustado para 0.`);
     }
     items[itemIndex] = {
       ...current,
