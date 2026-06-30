@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Package, Plus, Trash2, Edit2, Check, X, Truck, UtensilsCrossed, FileText, Calendar, ShoppingCart, Camera, User } from "lucide-react";
+import { Package, Plus, Trash2, Edit2, Check, X, Truck, UtensilsCrossed, FileText, Calendar, ShoppingCart, Camera, User, RefreshCw } from "lucide-react";
 import { Card, Input, Button, SearchBar, Badge, ConfirmDialog } from "../ui";
 import InvoicePhotoImporter from "../InvoicePhotoImporter";
 import PriceComparisonBadge from "../PriceComparisonBadge";
@@ -13,7 +13,7 @@ interface ShoppingManagerProps {
 }
 
 export default function ShoppingManager({ db }: ShoppingManagerProps) {
-  const { data, add, update, remove, recalculateLogisticsFund } = db;
+  const { data, add, update, remove, recalculateLogisticsFund, recalculateAllTotals } = db;
   const { shoppingTrips = [], materials = [], extras = [], suppliers = [] } = data;
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -469,12 +469,26 @@ export default function ShoppingManager({ db }: ShoppingManagerProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <ShoppingCart className="w-8 h-8 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">Registro de Compras</h1>
-          <p className="text-muted-foreground">Registre suas viagens de compras, notas fiscais e gastos extras</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <ShoppingCart className="w-8 h-8 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">Registro de Compras</h1>
+            <p className="text-muted-foreground">Registre suas viagens de compras, notas fiscais e gastos extras</p>
+          </div>
         </div>
+        <Button
+          variant="outline"
+          className="text-sm py-1.5 px-3 h-auto"
+          onClick={() => {
+            recalculateAllTotals();
+            toast.success('Totais recalculados e balanço sincronizado.');
+          }}
+          title="Recalcular totais e sincronizar balanço"
+        >
+          <RefreshCw className="w-4 h-4 mr-1" />
+          Recalcular
+        </Button>
       </div>
 
       {/* New Trip Form */}
