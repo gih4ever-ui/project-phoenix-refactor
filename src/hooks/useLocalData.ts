@@ -275,6 +275,50 @@ export const useLocalData = (initialData?: FluctusData) => {
     });
   };
 
+  const recalculateAllTotals = () => {
+    setData(prev => {
+      // Recompute totals for every shopping trip
+      const updatedTrips = prev.shoppingTrips.map(trip => {
+        const totalLogistics = trip.logistics.reduce((sum, l) => sum + (l.value || 0), 0);
+        const totalGoods = trip.invoices.reduce((sum, inv) => {
+          const itemsTotal = inv.items.reduce((s, item) => {
+            const businessQty = typeof item.qtyBusiness === 'number'
+              ? item.qtyBusiness
+              : (item.includeInTotal === false ? 0 : item.qty);
+            return s + businessQty * item.price;
+          }, 0);
+          const discount = inv.discountType === 'percent'
+            ? itemsTotal * (inv.discount / 100)
+            : inv.discount;
+          return sum + itemsTotal - discount;
+        }, 0);
+        return {
+          ...trip,
+          totalLogistics,
+          totalGoods,
+          grandTotal: totalLogistics + totalGoods
+        };
+      });
+
+      // Sync logistics fund using recomputed trips
+      const totalDeposited = prev.logisticsFund.deposits.reduce((sum, d) => sum + d.value, 0);
+      const totalSpent = updatedTrips
+        .filter(t => t.logisticsConfirmed === true)
+        .reduce((sum, t) => sum + t.totalLogistics, 0);
+
+      return {
+        ...prev,
+        shoppingTrips: updatedTrips,
+        logisticsFund: {
+          ...prev.logisticsFund,
+          totalDeposited,
+          totalSpent,
+          balance: totalDeposited - totalSpent
+        }
+      };
+    });
+  };
+
   const confirmLogisticsExpense = (tripId: number) => {
     setData(prev => {
       const updatedTrips = prev.shoppingTrips.map(t =>
