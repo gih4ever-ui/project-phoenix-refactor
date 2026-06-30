@@ -13,7 +13,7 @@ interface ShoppingManagerProps {
 }
 
 export default function ShoppingManager({ db }: ShoppingManagerProps) {
-  const { data, add, update, remove, recalculateLogisticsFund } = db;
+  const { data, add, update, remove, recalculateLogisticsFund, recalculateAllTotals } = db;
   const { shoppingTrips = [], materials = [], extras = [], suppliers = [] } = data;
 
   const [searchTerm, setSearchTerm] = useState("");
