@@ -1,33 +1,25 @@
 ## Objetivo
-Adicionar um botão na tela de Compras para o usuário recalcular manualmente os totais de todas as viagens e sincronizar o balanço do fundo de logística, sem precisar atualizar a página.
+Facilitar saber onde comprar, adicionando link no fornecedor (link geral da loja) e também na cotação (para casos como Mercado Livre, onde cada produto tem URL própria).
 
-## Motivação
-Com a introdução da classificação de itens (meu/parceira/pessoal/dividido), os totais das notas e viagens dependem da quantidade de negócio (`qtyBusiness`). Um recálculo manual corrige eventuais inconsistências de dados legados ou migrações, garantindo que o balanço exibido esteja sempre correto.
+## Mudanças
 
-## O que será feito
+### 1. Tipos (`src/types/fluctus.ts`)
+- `Supplier`: adicionar `website?: string` (link geral da loja/perfil).
+- `Quote`: adicionar `url?: string` (link direto do produto/anúncio).
 
-### 1. Função `recalculateAllTotals` no hook `useLocalData.ts`
-- Criar uma função no hook que percorre todas as `shoppingTrips` e recalcula, para cada uma:
-  - `totalLogistics`: soma de todos os itens de logística da viagem.
-  - `totalGoods`: soma dos itens das notas fiscais considerando apenas `qtyBusiness * price`, menos o desconto da nota.
-  - `grandTotal`: `totalLogistics + totalGoods`.
-- A lógica de cálculo deve espelhar exatamente a função `calculateTotals` existente no `ShoppingManager.tsx` (incluindo o tratamento de `qtyBusiness` e descontos).
-- Após recalcular todos os totais das trips, chamar internamente a lógica de `recalculateLogisticsFund` para sincronizar o balanço.
-- Fazer tudo em um único `setData` para evitar múltiplos re-renders.
+### 2. Cadastro de Fornecedor (`SupplierManager.tsx`)
+- Novo campo "Link da loja / site" no formulário.
+- Exibir ícone de link clicável no card do fornecedor quando preenchido (abre em nova aba).
 
-### 2. Botão na tela de Compras (`ShoppingManager.tsx`)
-- Adicionar um botão secundário (com ícone de refresh/calculadora) no cabeçalho da tela, ao lado do título "Registro de Compras".
-- Ao clicar, chamar `db.recalculateAllTotals()`.
-- Exibir um toast de sucesso via `sonner`: "Totais recalculados e balanço sincronizado."
+### 3. Cotações — Materiais e Extras (`MaterialManager.tsx` e `ExtrasManager.tsx`)
+- No formulário de cotação (onde hoje tem Fornecedor / Preço / Obs), adicionar campo opcional "Link do produto" (útil para Mercado Livre, Shopee, etc).
+- Na listagem de cotações, quando houver `url`, mostrar um pequeno ícone de link (🔗) ao lado do fornecedor, clicável, abrindo em nova aba (`target="_blank" rel="noopener noreferrer"`).
+- Nos chips compactos de cotação (fora do modo edição), também mostrar o ícone quando houver link.
 
-### 3. Teste de verificação
-- Incluir uma verificação rápida via script Playwright após a implementação para garantir que o botão aparece e dispara o recálculo sem erros no console.
+### 4. Uso na foto de nota (opcional, sem mudança agora)
+Não altera o fluxo de importação por foto — os links são preenchidos manualmente no cadastro.
 
-## Arquivos que serão alterados
-- `src/hooks/useLocalData.ts`
-- `src/components/fluctus/screens/ShoppingManager.tsx`
-
-## Notas técnicas
-- A função não modifica itens, notas fiscais ou logística — apenas reprocessa os totais já existentes.
-- O recálculo deve ser idempotente: rodar duas vezes seguidas deve produzir o mesmo resultado.
-- A sincronização com a nuvem acontecerá automaticamente via debounce já existente no `useLocalData`.
+## Detalhes técnicos
+- Campos totalmente opcionais, retrocompatíveis (dados antigos sem link continuam funcionando).
+- Sem migração de banco: tudo persiste no mesmo JSON do usuário.
+- Validação leve: apenas garantir que começa com `http://` ou `https://` antes de abrir (prefixar `https://` se o usuário digitar sem protocolo).
