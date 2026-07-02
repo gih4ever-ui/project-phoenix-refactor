@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, X, Save, MapPin, Store, Building2 } from "lucide-react";
+import { Plus, Trash2, Pencil, X, Save, MapPin, Store, Building2, ExternalLink } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge, AddressForm, ConfirmDialog } from "../ui";
-import { fetchCepData } from "@/lib/utils";
+import { fetchCepData, normalizeUrl } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 
 interface SupplierManagerProps {
@@ -31,6 +31,7 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
     cidade: "",
     estado: "",
     invoiceAliases: [] as string[],
+    website: "",
   });
   const [newAlias, setNewAlias] = useState("");
   const [loadingCep, setLoadingCep] = useState(false);
@@ -99,6 +100,7 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
     cidade: "",
     estado: "",
     invoiceAliases: [] as string[],
+    website: "",
   };
 
   const handleSave = () => {
