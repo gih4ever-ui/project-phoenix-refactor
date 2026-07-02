@@ -367,6 +367,17 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
                     )}
                   </div>
                   <div className="flex gap-2">
+                    {normalizeUrl(s.website) && (
+                      <a
+                        href={normalizeUrl(s.website)!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-primary"
+                        title={s.website}
+                      >
+                        <ExternalLink size={18} />
+                      </a>
+                    )}
                     <button
                       onClick={() => handleEdit(s)}
                       className="text-muted-foreground hover:text-primary"
