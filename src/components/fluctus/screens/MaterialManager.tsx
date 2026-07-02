@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Plus, Trash2, Pencil, Star, Sparkles, X, Save, Check } from "lucide-react";
+import { Plus, Trash2, Pencil, Star, Sparkles, X, Save, Check, ExternalLink } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge, ConfirmDialog } from "../ui";
-import { safeFixed } from "@/lib/utils";
+import { safeFixed, normalizeUrl } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 import { Quote, Material } from "@/types/fluctus";
 
@@ -23,7 +23,7 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
     composition: "",
     quotes: [] as Quote[],
   });
-  const [quoteForm, setQuoteForm] = useState({ supplierId: "", price: "", obs: "" });
+  const [quoteForm, setQuoteForm] = useState({ supplierId: "", price: "", obs: "", url: "" });
   const [editingQuoteId, setEditingQuoteId] = useState<number | null>(null);
 
   const handleSaveMaterial = () => {
@@ -45,22 +45,23 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
 
   const handleSaveQuote = (materialId: number, currentQuotes: Quote[]) => {
     if (!quoteForm.supplierId || !quoteForm.price) return;
+    const baseQuote = {
+      supplierId: quoteForm.supplierId,
+      price: parseFloat(quoteForm.price),
+      obs: quoteForm.obs,
+      url: quoteForm.url?.trim() || undefined,
+    };
     let updatedQuotes: Quote[];
     if (editingQuoteId) {
       updatedQuotes = currentQuotes.map((q) =>
-        q.id === editingQuoteId
-          ? { ...quoteForm, id: editingQuoteId, price: parseFloat(quoteForm.price), supplierId: quoteForm.supplierId }
-          : q
+        q.id === editingQuoteId ? { ...baseQuote, id: editingQuoteId } : q
       );
       setEditingQuoteId(null);
     } else {
-      updatedQuotes = [
-        ...currentQuotes,
-        { ...quoteForm, id: Date.now(), price: parseFloat(quoteForm.price), supplierId: quoteForm.supplierId },
-      ];
+      updatedQuotes = [...currentQuotes, { ...baseQuote, id: Date.now() }];
     }
     update("materials", materialId, { quotes: updatedQuotes });
-    setQuoteForm({ supplierId: "", price: "", obs: "" });
+    setQuoteForm({ supplierId: "", price: "", obs: "", url: "" });
   };
 
   const handleDeleteQuote = (materialId: number, quoteId: number, currentQuotes: Quote[], mat: Material) => {
