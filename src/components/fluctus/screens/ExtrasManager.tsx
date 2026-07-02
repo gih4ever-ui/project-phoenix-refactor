@@ -194,6 +194,17 @@ export const ExtrasManager = ({ db }: ExtrasManagerProps) => {
                         <span className="font-bold">
                           R$ {safeFixed(q.price)}/{ext.buyUnit}
                         </span>
+                        {normalizeUrl(q.url) && (
+                          <a
+                            href={normalizeUrl(q.url)!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-1 hover:opacity-70"
+                            title={q.url}
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -224,7 +235,20 @@ export const ExtrasManager = ({ db }: ExtrasManagerProps) => {
                           <div className="flex items-center gap-3">
                             {idx === 0 && <Sparkles size={14} className="text-badge-gold fill-current" />}
                             <div className="flex flex-col">
-                              <span className="font-medium text-foreground">{supName}</span>
+                              <span className="font-medium text-foreground flex items-center gap-2">
+                                {supName}
+                                {normalizeUrl(q.url) && (
+                                  <a
+                                    href={normalizeUrl(q.url)!}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary hover:opacity-70"
+                                    title={q.url}
+                                  >
+                                    <ExternalLink size={12} />
+                                  </a>
+                                )}
+                              </span>
                               {q.obs && <span className="text-xs text-muted-foreground italic">{q.obs}</span>}
                             </div>
                           </div>
@@ -233,7 +257,7 @@ export const ExtrasManager = ({ db }: ExtrasManagerProps) => {
                             <div className="flex gap-1">
                               <button
                                 onClick={() => {
-                                  setQuoteForm({ supplierId: String(q.supplierId), price: String(q.price), obs: q.obs || "" });
+                                  setQuoteForm({ supplierId: String(q.supplierId), price: String(q.price), obs: q.obs || "", url: q.url || "" });
                                   setEditingQuoteId(q.id);
                                 }}
                                 className="p-1.5 hover:bg-primary/10 rounded text-primary"
