@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Plus, Trash2, Pencil, Star, Sparkles, X, Save, Check } from "lucide-react";
+import { Plus, Trash2, Pencil, Star, Sparkles, X, Save, Check, ExternalLink } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge, ConfirmDialog } from "../ui";
-import { safeFixed } from "@/lib/utils";
+import { safeFixed, normalizeUrl } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 import { Quote, Material } from "@/types/fluctus";
 
@@ -23,7 +23,7 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
     composition: "",
     quotes: [] as Quote[],
   });
-  const [quoteForm, setQuoteForm] = useState({ supplierId: "", price: "", obs: "" });
+  const [quoteForm, setQuoteForm] = useState({ supplierId: "", price: "", obs: "", url: "" });
   const [editingQuoteId, setEditingQuoteId] = useState<number | null>(null);
 
   const handleSaveMaterial = () => {
@@ -45,22 +45,23 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
 
   const handleSaveQuote = (materialId: number, currentQuotes: Quote[]) => {
     if (!quoteForm.supplierId || !quoteForm.price) return;
+    const baseQuote = {
+      supplierId: quoteForm.supplierId,
+      price: parseFloat(quoteForm.price),
+      obs: quoteForm.obs,
+      url: quoteForm.url?.trim() || undefined,
+    };
     let updatedQuotes: Quote[];
     if (editingQuoteId) {
       updatedQuotes = currentQuotes.map((q) =>
-        q.id === editingQuoteId
-          ? { ...quoteForm, id: editingQuoteId, price: parseFloat(quoteForm.price), supplierId: quoteForm.supplierId }
-          : q
+        q.id === editingQuoteId ? { ...baseQuote, id: editingQuoteId } : q
       );
       setEditingQuoteId(null);
     } else {
-      updatedQuotes = [
-        ...currentQuotes,
-        { ...quoteForm, id: Date.now(), price: parseFloat(quoteForm.price), supplierId: quoteForm.supplierId },
-      ];
+      updatedQuotes = [...currentQuotes, { ...baseQuote, id: Date.now() }];
     }
     update("materials", materialId, { quotes: updatedQuotes });
-    setQuoteForm({ supplierId: "", price: "", obs: "" });
+    setQuoteForm({ supplierId: "", price: "", obs: "", url: "" });
   };
 
   const handleDeleteQuote = (materialId: number, quoteId: number, currentQuotes: Quote[], mat: Material) => {
@@ -236,6 +237,18 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                           <span className="font-bold">
                             R$ {safeFixed(q.price)}/{m.buyUnit}
                           </span>
+                          {normalizeUrl(q.url) && (
+                            <a
+                              href={normalizeUrl(q.url)!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="ml-1 hover:text-primary"
+                              title={q.url}
+                            >
+                              <ExternalLink size={12} />
+                            </a>
+                          )}
                         </button>
                       );
                     })}
@@ -275,7 +288,20 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                             {isSelected && <Check size={14} className="text-primary" />}
                             {isCheapest && !isSelected && <Sparkles size={14} className="text-badge-gold fill-current" />}
                             <div className="flex flex-col">
-                              <span className="font-medium text-foreground">{supName}</span>
+                              <span className="font-medium text-foreground flex items-center gap-2">
+                                {supName}
+                                {normalizeUrl(q.url) && (
+                                  <a
+                                    href={normalizeUrl(q.url)!}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary hover:opacity-70"
+                                    title={q.url}
+                                  >
+                                    <ExternalLink size={12} />
+                                  </a>
+                                )}
+                              </span>
                               {q.obs && <span className="text-xs text-muted-foreground italic">{q.obs}</span>}
                             </div>
                           </div>
@@ -295,7 +321,7 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                               </button>
                               <button
                                 onClick={() => {
-                                  setQuoteForm({ supplierId: String(q.supplierId), price: String(q.price), obs: q.obs || "" });
+                                  setQuoteForm({ supplierId: String(q.supplierId), price: String(q.price), obs: q.obs || "", url: q.url || "" });
                                   setEditingQuoteId(q.id);
                                 }}
                                 className="p-1.5 hover:bg-primary/10 rounded text-primary"
@@ -320,7 +346,7 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                     )}
                   </div>
                   <div
-                    className={`flex flex-col md:flex-row gap-2 items-end p-3 rounded-lg border shadow-sm ${
+                    className={`flex flex-col md:flex-row md:flex-wrap gap-2 items-end p-3 rounded-lg border shadow-sm ${
                       editingQuoteId ? "bg-warning/10 border-warning/30" : "bg-card border-primary/30"
                     }`}
                   >
@@ -372,6 +398,17 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                       >
                         {editingQuoteId ? <Save size={16} /> : <Plus size={16} />}
                       </Button>
+                    </div>
+                    <div className="w-full">
+                      <label className="text-xs font-bold text-muted-foreground ml-1 mb-1 block">
+                        Link do produto (opcional)
+                      </label>
+                      <input
+                        className="w-full border border-input rounded-lg p-2 text-sm outline-none bg-card text-foreground"
+                        value={quoteForm.url}
+                        onChange={(e) => setQuoteForm({ ...quoteForm, url: e.target.value })}
+                        placeholder="Ex: link do anúncio no Mercado Livre"
+                      />
                     </div>
                   </div>
                 </div>

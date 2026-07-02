@@ -26,6 +26,14 @@ export const formatCurrency = (val: any): string => {
   }).format(safeVal(val));
 };
 
+// Normaliza URL adicionando https:// se faltar protocolo. Retorna null se vazio.
+export const normalizeUrl = (url?: string): string | null => {
+  const trimmed = (url || "").trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
+
 // ===== Centralized Cost Calculation Functions =====
 
 import type { Material, Extra, Product, Kit } from '@/types/fluctus';

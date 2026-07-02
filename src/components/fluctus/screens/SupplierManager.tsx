@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, X, Save, MapPin, Store, Building2 } from "lucide-react";
+import { Plus, Trash2, Pencil, X, Save, MapPin, Store, Building2, ExternalLink } from "lucide-react";
 import { Card, Button, Input, SearchBar, Badge, AddressForm, ConfirmDialog } from "../ui";
-import { fetchCepData } from "@/lib/utils";
+import { fetchCepData, normalizeUrl } from "@/lib/utils";
 import { DatabaseHook } from "@/hooks/useLocalData";
 
 interface SupplierManagerProps {
@@ -31,6 +31,7 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
     cidade: "",
     estado: "",
     invoiceAliases: [] as string[],
+    website: "",
   });
   const [newAlias, setNewAlias] = useState("");
   const [loadingCep, setLoadingCep] = useState(false);
@@ -99,6 +100,7 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
     cidade: "",
     estado: "",
     invoiceAliases: [] as string[],
+    website: "",
   };
 
   const handleSave = () => {
@@ -243,6 +245,14 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
               />
             </div>
             <div className="mb-4">
+              <Input
+                label="Link da loja / site (opcional)"
+                value={form.website}
+                onChange={(e) => setForm({ ...form, website: e.target.value })}
+                placeholder="Ex: https://loja.com.br ou perfil do Mercado Livre"
+              />
+            </div>
+            <div className="mb-4">
               <label className="text-sm font-medium text-muted-foreground block mb-1">
                 Polo de Compra
               </label>
@@ -357,6 +367,17 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
                     )}
                   </div>
                   <div className="flex gap-2">
+                    {normalizeUrl(s.website) && (
+                      <a
+                        href={normalizeUrl(s.website)!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-primary"
+                        title={s.website}
+                      >
+                        <ExternalLink size={18} />
+                      </a>
+                    )}
                     <button
                       onClick={() => handleEdit(s)}
                       className="text-muted-foreground hover:text-primary"
