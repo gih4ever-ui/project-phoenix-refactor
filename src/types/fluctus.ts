@@ -5,6 +5,8 @@ export interface Quote {
   supplierId: number | string;
   price: number;
   obs?: string;
+  /** Link direto do produto/anúncio (útil para Mercado Livre, Shopee, etc). */
+  url?: string;
 }
 
 export interface Material {
@@ -47,6 +49,8 @@ export interface Supplier {
   estado?: string;
   /** Nomes alternativos que aparecem em notas fiscais (razão social, etc), para auto-match na leitura por foto. */
   invoiceAliases?: string[];
+  /** Link geral da loja / site / perfil do fornecedor. */
+  website?: string;
 }
 
 export interface Polo {
