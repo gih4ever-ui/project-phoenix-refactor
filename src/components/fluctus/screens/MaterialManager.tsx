@@ -237,6 +237,18 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                           <span className="font-bold">
                             R$ {safeFixed(q.price)}/{m.buyUnit}
                           </span>
+                          {normalizeUrl(q.url) && (
+                            <a
+                              href={normalizeUrl(q.url)!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="ml-1 hover:text-primary"
+                              title={q.url}
+                            >
+                              <ExternalLink size={12} />
+                            </a>
+                          )}
                         </button>
                       );
                     })}
@@ -276,7 +288,20 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                             {isSelected && <Check size={14} className="text-primary" />}
                             {isCheapest && !isSelected && <Sparkles size={14} className="text-badge-gold fill-current" />}
                             <div className="flex flex-col">
-                              <span className="font-medium text-foreground">{supName}</span>
+                              <span className="font-medium text-foreground flex items-center gap-2">
+                                {supName}
+                                {normalizeUrl(q.url) && (
+                                  <a
+                                    href={normalizeUrl(q.url)!}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary hover:opacity-70"
+                                    title={q.url}
+                                  >
+                                    <ExternalLink size={12} />
+                                  </a>
+                                )}
+                              </span>
                               {q.obs && <span className="text-xs text-muted-foreground italic">{q.obs}</span>}
                             </div>
                           </div>
@@ -296,7 +321,7 @@ export const MaterialManager = ({ db }: MaterialManagerProps) => {
                               </button>
                               <button
                                 onClick={() => {
-                                  setQuoteForm({ supplierId: String(q.supplierId), price: String(q.price), obs: q.obs || "" });
+                                  setQuoteForm({ supplierId: String(q.supplierId), price: String(q.price), obs: q.obs || "", url: q.url || "" });
                                   setEditingQuoteId(q.id);
                                 }}
                                 className="p-1.5 hover:bg-primary/10 rounded text-primary"
