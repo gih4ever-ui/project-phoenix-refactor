@@ -245,6 +245,14 @@ export const SupplierManager = ({ db }: SupplierManagerProps) => {
               />
             </div>
             <div className="mb-4">
+              <Input
+                label="Link da loja / site (opcional)"
+                value={form.website}
+                onChange={(e) => setForm({ ...form, website: e.target.value })}
+                placeholder="Ex: https://loja.com.br ou perfil do Mercado Livre"
+              />
+            </div>
+            <div className="mb-4">
               <label className="text-sm font-medium text-muted-foreground block mb-1">
                 Polo de Compra
               </label>
