@@ -282,7 +282,7 @@ export const ExtrasManager = ({ db }: ExtrasManagerProps) => {
                     )}
                   </div>
                   <div
-                    className={`flex flex-col md:flex-row gap-2 items-end p-3 rounded-lg border shadow-sm ${
+                    className={`flex flex-col md:flex-row md:flex-wrap gap-2 items-end p-3 rounded-lg border shadow-sm ${
                       editingQuoteId ? "bg-warning/10 border-warning/30" : "bg-card border-badge-purple/30"
                     }`}
                   >
@@ -334,6 +334,17 @@ export const ExtrasManager = ({ db }: ExtrasManagerProps) => {
                       >
                         {editingQuoteId ? <Save size={16} /> : <Plus size={16} />}
                       </Button>
+                    </div>
+                    <div className="w-full">
+                      <label className="text-xs font-bold text-muted-foreground ml-1 mb-1 block">
+                        Link do produto (opcional)
+                      </label>
+                      <input
+                        className="w-full border border-input rounded-lg p-2 text-sm outline-none bg-card text-foreground"
+                        value={quoteForm.url}
+                        onChange={(e) => setQuoteForm({ ...quoteForm, url: e.target.value })}
+                        placeholder="Ex: link do anúncio no Mercado Livre"
+                      />
                     </div>
                   </div>
                 </div>
